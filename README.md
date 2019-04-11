@@ -4,7 +4,7 @@ CLI tool to query the menu of cafeterias in Leipzig that are listed [here](https
 
 # Usage
 
-Use [Rust](https://www.rust-lang.org/)s build tool [Cargo](https://www.rust-lang.org/) to build and, optionally, install this program:
+Use [Rust](https://www.rust-lang.org/)s build tool [Cargo](https://crates.io/) to build and, optionally, install this program:
 ```
  > cargo build --release
  > cargo install --path . --force
