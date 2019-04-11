@@ -16,6 +16,7 @@ mensa [ at LOCATION ]
       [ vegan | veggie | vegetarian | flexible ]
       [ on [ today | tomorrow | yyyy-mm-dd ]
 ```
+/A complete syntax can be found [here](/search_format.pest)./
 
 # TODO
 
