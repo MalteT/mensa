@@ -1,6 +1,6 @@
 # Mensa
 
-Fetch food from university cafeteria in Leipzig.
+CLI tool to query the menu of cafeterias in Leipzig that are listed [here](https://www.studentenwerk-leipzig.de/mensen-cafeterien/speiseplan).
 
 # Usage
 
