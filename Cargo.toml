@@ -5,3 +5,11 @@ authors = ["Malte Tammena <malte.tammena@gmx.de>"]
 edition = "2018"
 
 [dependencies]
+scraper = "0.9"
+reqwest = "0.9"
+chrono = "0.4"
+lazy_static = "1.3"
+pest = "2.1"
+pest_derive = "2.1"
+colored = "1.7"
+ego-tree = "0.6"
