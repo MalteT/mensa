@@ -17,6 +17,16 @@ mensa [ at LOCATION ]
       [ on [ today | tomorrow | yyyy-mm-dd ]
 ```
 
+# TODO
+
+```
+src/meal.rs
+44:    /// - FIXME: No food on sundays!
+45:    /// - FIXME: Refactor
+194:/// TODO: Badges
+195:/// TODO: Price
+
+```
 
 # Bugs
 
