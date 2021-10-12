@@ -595,6 +595,7 @@ dependencies = [
  "regex",
  "reqwest",
  "serde",
+ "serde_plain",
  "structopt",
  "termion",
  "textwrap 0.14.2",
@@ -1118,6 +1119,15 @@ checksum = "0f690853975602e1bfe1ccbf50504d67174e3bcf340f23b5ea9992e0587a52d8"
 dependencies = [
  "itoa",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_plain"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95455e7e29fada2052e72170af226fbe368a4ca33dee847875325d9fdb133858"
+dependencies = [
  "serde",
 ]
 

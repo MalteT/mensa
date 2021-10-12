@@ -43,8 +43,12 @@ async fn fetch_meals() -> Result<Vec<Meal>> {
 }
 
 fn print_meals(meals: &[Meal]) {
+    let meals = meals.iter();
+    let filter = CONFIG.filter();
     for meal in meals {
-        meal.print_to_terminal();
-        println!();
+        if filter.is_allowed(meal) {
+            meal.print_to_terminal();
+            println!();
+        }
     }
 }

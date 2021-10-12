@@ -1,14 +1,25 @@
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
+use regex::Regex;
 use serde::Deserialize;
 use structopt::StructOpt;
 
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
-use crate::error::{pass_info, Error, Result, ResultExt};
+use crate::{
+    config::filter::TagFilter,
+    error::{pass_info, Error, Result, ResultExt},
+    meal::Tag,
+};
+
+mod filter;
+
+use self::filter::{CategoryFilter, Filter};
 
 lazy_static! {
     pub static ref CONFIG: Config = Config::assemble().log_panic();
@@ -20,10 +31,22 @@ pub struct Config {
     file: Option<ConfigFile>,
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Deserialize)]
+pub enum PriceTags {
+    Student,
+    Employee,
+    Other,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
 struct ConfigFile {
+    #[serde(default)]
     default_mensa_id: Option<usize>,
+    #[serde(default)]
+    price_tags: HashSet<PriceTags>,
+    #[serde(default)]
+    filter: Filter,
 }
 
 impl ConfigFile {
@@ -49,6 +72,18 @@ pub struct Args {
     /// Path to the configuration file.
     #[structopt(long, short, env = "MENSA_CONFIG", name = "PATH")]
     pub config: Option<PathBuf>,
+    #[structopt(long, env = "MENSA_OVERWRITE_FILTER", takes_value = false)]
+    pub overwrite_filter: bool,
+    #[structopt(long, env = "MENSA_FILTER_TAG_ALLOW", parse(try_from_str = serde_plain::from_str))]
+    pub allow_tag: Vec<Tag>,
+    #[structopt(long, env = "MENSA_FILTER_TAG_DENY", parse(try_from_str = serde_plain::from_str))]
+    pub deny_tag: Vec<Tag>,
+    #[structopt(long, env = "MENSA_FILTER_CATEGORY_ALLOW")]
+    pub allow_category: Vec<Regex>,
+    #[structopt(long, env = "MENSA_FILTER_CATEGORY_DENY")]
+    pub deny_category: Vec<Regex>,
+    #[structopt(long, short, env = "MENSA_PRICES")]
+    pub price: Option<Vec<PriceTags>>,
 }
 
 impl Config {
@@ -64,6 +99,40 @@ impl Config {
 
     pub fn date(&self) -> &chrono::NaiveDate {
         &self.args.date
+    }
+
+    pub fn price_tags(&self) -> HashSet<PriceTags> {
+        let from_file = || self.file.as_ref().map(|conf| conf.price_tags.clone());
+        let from_args = self
+            .args
+            .price
+            .clone()
+            .map(|prices| prices.into_iter().collect());
+        from_args.or_else(from_file).unwrap_or_default()
+    }
+
+    pub fn filter(&self) -> Filter {
+        let configuration_filter = self
+            .file
+            .as_ref()
+            .map(|file| &file.filter)
+            .cloned()
+            .unwrap_or_default();
+        let args_filter = Filter {
+            tag: TagFilter {
+                allow: self.args.allow_tag.clone(),
+                deny: self.args.deny_tag.clone(),
+            },
+            category: CategoryFilter::from_arg_parts(
+                &self.args.allow_category,
+                &self.args.deny_category,
+            ),
+        };
+        if self.args.overwrite_filter {
+            args_filter
+        } else {
+            configuration_filter.joined(args_filter)
+        }
     }
 
     fn assemble() -> Result<Self> {
@@ -86,4 +155,17 @@ fn default_config_path() -> Result<PathBuf> {
     dirs::config_dir()
         .ok_or(Error::NoConfigDir)
         .map(|base| base.join("mensa/config.toml"))
+}
+
+impl FromStr for PriceTags {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "student" => Ok(Self::Student),
+            "employee" => Ok(Self::Employee),
+            "other" => Ok(Self::Other),
+            _ => Err("expected `Student`, `Employee`, or `Other`"),
+        }
+    }
 }

@@ -8,7 +8,10 @@ use unicode_width::UnicodeWidthStr;
 
 use std::collections::HashSet;
 
-use crate::error::{Error, ResultExt};
+use crate::{
+    config::{PriceTags, CONFIG},
+    error::{pass_info, Error, ResultExt},
+};
 
 const MIN_TERM_WIDTH: usize = 20;
 const NAME_PRE: &str = "╭───╴";
@@ -50,8 +53,20 @@ lazy_static! {
 }
 
 #[derive(Debug, Deserialize)]
-#[cfg_attr(debug, serde(deny_unknown_fields))]
+#[serde(from = "RawMeal")]
 pub struct Meal {
+    pub _id: usize,
+    pub name: String,
+    pub tags: HashSet<Tag>,
+    pub allergenes: HashSet<Allergene>,
+    pub other_notes: HashSet<String>,
+    pub prices: Prices,
+    pub category: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(debug, serde(deny_unknown_fields))]
+struct RawMeal {
     id: usize,
     name: String,
     notes: Vec<String>,
@@ -77,15 +92,25 @@ enum Note {
 #[derive(Debug, Clone, Default)]
 struct SplittedNotes {
     tags: HashSet<Tag>,
-    allergenes: Vec<Allergene>,
+    allergenes: HashSet<Allergene>,
     others: HashSet<String>,
 }
 
 #[derive(
-    Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd, IntoPrimitive, TryFromPrimitive,
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Ord,
+    PartialOrd,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Deserialize,
 )]
 #[repr(u8)]
-enum Tag {
+pub enum Tag {
     Cow,
     Fish,
     Pig,
@@ -98,8 +123,8 @@ enum Tag {
     Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, IntoPrimitive, TryFromPrimitive,
 )]
 #[repr(u8)]
-enum Allergene {
-    Alkohol,
+pub enum Allergene {
+    Alcohol,
     Antioxidant,
     Blackened,
     Coloring,
@@ -119,51 +144,42 @@ enum Allergene {
     Sweetener,
 }
 
-impl Note {
-    fn is_other(&self) -> bool {
-        if let Note::Other(_) = self {
-            true
-        } else {
-            false
-        }
+impl RawMeal {
+    fn parse_and_split_notes(&self) -> SplittedNotes {
+        self.notes
+            .iter()
+            .cloned()
+            .flat_map(|raw| Note::from_str(&raw))
+            .fold(SplittedNotes::default(), |mut sn, note| {
+                match note {
+                    Note::Tag(tag) => {
+                        sn.tags.insert(tag);
+                    }
+                    Note::Allergene(all) => {
+                        sn.allergenes.insert(all);
+                    }
+                    Note::Other(other) => {
+                        sn.others.insert(other);
+                    }
+                }
+                sn
+            })
     }
 }
 
 impl Meal {
     pub fn print_to_terminal(&self) {
-        use termion::{color::*, style::*};
         let (width, _height) = get_sane_terminal_dimensions();
         // Print meal name
         self.print_name_to_terminal(width);
         // Get notes, i.e. allergenes, descriptions, tags
-        let notes = self.parse_and_split_notes();
-        self.print_category_and_tags(&notes.tags);
-        self.prices.print_to_terminal();
-        self.print_other_notes(width, &notes.others);
-        let allergene_str = notes
-            .allergenes
-            .iter()
-            .fold(String::new(), |s, a| s + &format!("{} ", a));
-        println!(
-            "╰╴{}{}{}",
-            Fg(LightBlack),
-            if allergene_str.is_empty() {
-                format!(
-                    "{}{}no allergenes / miscellaneous{}{}",
-                    Italic,
-                    Fg(LightBlack),
-                    Fg(color::Reset),
-                    style::Reset
-                )
-            } else {
-                allergene_str
-            },
-            Fg(color::Reset),
-        );
+        self.print_category_and_tags();
+        self.print_other_notes(width);
+        self.print_price_and_allergenes();
     }
 
     fn print_name_to_terminal(&self, width: usize) {
-        let max_name_width = width.saturating_sub(NAME_PRE.width()).max(MIN_TERM_WIDTH);
+        let max_name_width = width - NAME_PRE.width();
         let mut name_parts = textwrap::wrap(&self.name, max_name_width).into_iter();
         // There will always be a first part of the splitted string
         let first_name_part = name_parts.next().unwrap();
@@ -185,8 +201,9 @@ impl Meal {
         }
     }
 
-    fn print_category_and_tags(&self, tags: &HashSet<Tag>) {
-        let tag_str = tags
+    fn print_category_and_tags(&self) {
+        let tag_str = self
+            .tags
             .iter()
             .fold(String::from(" "), |s, e| s + &format!("{} ", e));
         println!(
@@ -198,9 +215,9 @@ impl Meal {
         );
     }
 
-    fn print_other_notes(&self, width: usize, others: &HashSet<String>) {
+    fn print_other_notes(&self, width: usize) {
         let max_note_width = width - OTHER_NOTE_PRE.width();
-        for note in others {
+        for note in &self.other_notes {
             let mut note_parts = textwrap::wrap(note, max_note_width).into_iter();
             // There will always be a first part in the splitted string
             println!("{}{}", OTHER_NOTE_PRE, note_parts.next().unwrap());
@@ -210,27 +227,30 @@ impl Meal {
         }
     }
 
-    fn parse_and_split_notes(&self) -> SplittedNotes {
-        let mut splitted_notes = self
-            .notes
+    fn print_price_and_allergenes(&self) {
+        let prices = self.prices.to_terminal_string();
+        let mut allergenes: Vec<_> = self.allergenes.clone().into_iter().collect();
+        allergenes.sort_unstable();
+        let allergene_str = allergenes
             .iter()
-            .cloned()
-            .flat_map(|raw| Note::from_str(&raw))
-            .fold(SplittedNotes::default(), |mut sn, note| {
-                match note {
-                    Note::Tag(tag) => {
-                        sn.tags.insert(tag);
-                    }
-                    Note::Allergene(all) => sn.allergenes.push(all),
-                    Note::Other(other) => {
-                        sn.others.insert(other);
-                    }
-                }
-                sn
-            });
-        splitted_notes.allergenes.sort_unstable();
-        splitted_notes.allergenes.dedup();
-        splitted_notes
+            .fold(String::new(), |s, a| s + &format!("{} ", a));
+        println!(
+            "╰╴{}  {}{}{}",
+            prices,
+            color::Fg(color::LightBlack),
+            if allergene_str.is_empty() {
+                format!(
+                    "{}{}no allergenes / miscellaneous{}{}",
+                    style::Italic,
+                    color::Fg(color::LightBlack),
+                    color::Fg(color::Reset),
+                    style::Reset
+                )
+            } else {
+                allergene_str
+            },
+            color::Fg(color::Reset),
+        );
     }
 }
 
@@ -257,10 +277,6 @@ impl Note {
             not_others
         }
     }
-
-    fn print_legend(notes: Vec<Self>) {
-        todo!()
-    }
 }
 
 impl Tag {
@@ -284,26 +300,46 @@ impl Allergene {
 }
 
 impl Prices {
-    fn print_to_terminal(&self) {
-        use termion::{
-            color::{self, *},
-            style::{self, *},
+    fn to_terminal_string(&self) -> String {
+        let price_style = format!("{}", color::Fg(color::LightGreen));
+        let reset = format!("{}", color::Fg(color::Reset));
+        let price_tags = CONFIG.price_tags();
+        let price_tags = if price_tags.is_empty() {
+            // Print all of them
+            vec![self.students, self.employees, self.others]
+        } else {
+            let mut values = vec![];
+            if price_tags.contains(&PriceTags::Student) {
+                values.push(self.students);
+            }
+            if price_tags.contains(&PriceTags::Employee) {
+                values.push(self.employees);
+            }
+            if price_tags.contains(&PriceTags::Other) {
+                values.push(self.others);
+            }
+            values
         };
-        let name_style = format!("{}", Fg(LightBlack));
-        let price_style = format!("{}", Bold);
-        let reset = format!("{}{}", style::Reset, Fg(color::Reset));
-        println!(
-            "│   {}Students {}{:>5.2}€{}",
-            &name_style, &price_style, self.students, &reset
-        );
-        println!(
-            "│  {}Employees {}{:>5.2}€{}",
-            &name_style, &price_style, self.employees, &reset
-        );
-        println!(
-            "│     {}Others {}{:>5.2}€{}",
-            &name_style, &price_style, self.others, &reset
-        );
+        let price_tags: Vec<_> = price_tags
+            .into_iter()
+            .map(|tag| format!("{}{:.2}€{}", &price_style, tag, &reset))
+            .collect();
+        match price_tags.len() {
+            0 => String::new(),
+            _ => {
+                let slash = format!(
+                    " {}/{} ",
+                    color::Fg(color::LightBlack),
+                    color::Fg(color::Reset)
+                );
+                format!(
+                    "{0}({2} {1} {0}){2}",
+                    color::Fg(color::LightBlack),
+                    price_tags.join(&slash),
+                    color::Fg(color::Reset)
+                )
+            }
+        }
     }
 }
 
@@ -334,5 +370,20 @@ impl fmt::Display for Allergene {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let number: u8 = (*self).into();
         write!(f, "{}", number)
+    }
+}
+
+impl From<RawMeal> for Meal {
+    fn from(raw: RawMeal) -> Self {
+        let splitted_notes = pass_info(&raw).parse_and_split_notes();
+        Self {
+            _id: raw.id,
+            name: raw.name,
+            prices: raw.prices,
+            category: raw.category,
+            tags: splitted_notes.tags,
+            allergenes: splitted_notes.allergenes,
+            other_notes: splitted_notes.others,
+        }
     }
 }

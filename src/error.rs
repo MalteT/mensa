@@ -21,6 +21,8 @@ pub enum Error {
     NoConfigDir,
     #[error("failed to read terminal size for standard output")]
     UnableToGetTerminalSize(#[source] std::io::Error),
+    #[error("failed parsing regexes specified in the configuration: {_0}")]
+    ParsingFilterRegex(#[source] regex::Error),
 }
 
 pub trait ResultExt<T> {
