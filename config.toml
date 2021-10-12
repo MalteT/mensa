@@ -1,0 +1,26 @@
+# ====================================
+# ==== Example configuration file ====
+# ====================================
+# The entire configuration is optional.
+# To specify which file to load, use `--config`
+#
+# $ mensa --config /path/to/config
+#
+# If omitted, `$XDG_CONFIG_HOME/mensa/config.toml` or
+#             `$HOME/.config/mensa/config.toml` (if $XDG_CONFIG_HOME is unset)
+# are checked.
+# 
+# All options can also be specified on the command line or in the environment
+#  1) CLI flags take precedence over
+#  2) ENVIRONMENT VARIABLES, which overwrite
+#  3) CONFIG options
+
+# --------------------------
+# ---- Default Mensa ID ----
+# --------------------------
+# The default mensa id to query information for.
+# If this is unspecified, the id needs to be defined per environment or cli.
+#
+# CLI: -i, --id ID
+# ENVIRONMENT: MENSA_ID
+default-mensa-id = 63
