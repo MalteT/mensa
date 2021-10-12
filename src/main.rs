@@ -1,17 +1,37 @@
-use thiserror::Error;
+mod config;
+mod error;
+mod meal;
 
-type Result<T> = std::result::Result<T, Error>;
+use config::CONFIG;
+use error::Result;
+use meal::Meal;
 
-fn main() -> Result<()> {
-    // TODO: Enable logger
-    // TODO: Read config
-    // TODO: Read args
-    // TODO: Fetch meals for mensa
+const ENDPOINT: &str = "https://openmensa.org/api/v2";
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    tracing_subscriber::fmt::init();
+    // TODO: Actually do what the user wants
+    let meals = fetch_meals().await?;
     // TODO: Display meals for mensa
+    // TODO: More pizzazz
+    print_meals(&meals);
     Ok(())
 }
 
-#[derive(Debug, Error)]
-enum Error {
+async fn fetch_meals() -> Result<Vec<Meal>> {
+    let url = format!(
+        "{}/canteens/{}/days/{}/meals",
+        ENDPOINT,
+        CONFIG.mensa_id(),
+        CONFIG.date()
+    );
+    Ok(reqwest::get(url).await?.json().await?)
+}
 
+fn print_meals(meals: &[Meal]) {
+    for meal in meals {
+        meal.print_to_terminal();
+        println!();
+    }
 }
