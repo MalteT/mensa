@@ -4,10 +4,13 @@ version = "0.3.0"
 authors = ["Malte Tammena <malte.tammena@gmx.de>"]
 edition = "2021"
 
+[package.metadata.nix]
+build = true
+toolchain = "nightly"
+
 [dependencies]
 thiserror = "1.0"
-reqwest = { version = "0.11", features = [ "json" ] }
-tokio = { version = "1", features = [ "full" ] }
+reqwest = { version = "0.11", features = [ "json", "blocking" ] }
 serde = { version = "1", features = [ "derive" ] }
 termion = "1.5"
 structopt = { version = "0.3", features = [ "wrap_help" ] }
@@ -24,3 +27,5 @@ toml = "0.5"
 textwrap = "0.14"
 unicode-width = "0.1"
 serde_plain = "1.0"
+remain = "0.2"
+strum = { version = "0.22", features = [ "derive" ] }

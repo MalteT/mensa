@@ -1,6 +1,6 @@
-# ====================================
-# ==== Example configuration file ====
-# ====================================
+# ============================================================
+# ================ Example configuration file ================
+# ============================================================
 # The entire configuration is optional.
 # To specify which file to load, use `--config`
 #
@@ -15,12 +15,80 @@
 #  2) ENVIRONMENT VARIABLES, which overwrite
 #  3) CONFIG options
 
-# --------------------------
-# ---- Default Mensa ID ----
-# --------------------------
+
+# ------------------------------------------------------------
+# --------------------- Default Mensa ID ---------------------
+# ------------------------------------------------------------
 # The default mensa id to query information for.
 # If this is unspecified, the id needs to be defined per environment or cli.
 #
 # CLI: -i, --id ID
 # ENVIRONMENT: MENSA_ID
 default-mensa-id = 63
+
+# ------------------------------------------------------------
+# ------------------------ Price Tags ------------------------
+# ------------------------------------------------------------
+# Specify which prices to display.
+# Choose from:
+#  - Student
+#  - Employee
+#  - Other
+#
+# CLI: --price
+# ENVIRONMENT: MENSA_PRICES
+price-tags = [ "Student" ]
+
+# ------------------------------------------------------------
+# -------------------------- Filter --------------------------
+# ------------------------------------------------------------
+# Filter the meals by tags or categories.
+#
+# A meal will be displayed if either:
+#  - No `allow` is defined and no `deny` matches, or
+#  - Any `allow` matches and no `deny` does.
+[filter.tag]
+# These are tags
+#
+# CLI: --allow-tag
+# ENVIRONMENT: MENSA_FILTER_TAG_ALLOW
+add = [ "Vegan", "Vegetarian" ]
+#
+# CLI: --deny-tag
+# ENVIRONMENT: MENSA_FILTER_TAG_DENY
+sub = [ "Fish", "Cow", "Pig", "Poultry" ]
+
+[filter.category]
+# These are regexes
+#
+# CLI: --allow-category
+# ENVIRONMENT: MENSA_FILTER_CATEGORY_ALLOW
+add = [ ]
+#
+# CLI: --deny-category
+# ENVIRONMENT: MENSA_FILTER_CATEGORY_DENY
+sub = [ "(?i)smoothie" ]
+
+# ------------------------------------------------------------
+# ------------------------ Highlights ------------------------
+# ------------------------------------------------------------
+# Highlight meals special to you!
+#
+# Works the same way FILTERs do.
+[favs.tag]
+# CLI: --hl-tag
+# ENVIRONMENT: MENSA_HL_TAG_ALLOW
+add = [ "Vegan" ]
+#
+# CLI: --no-hl-tag
+# ENVIRONMENT: MENSA_HL_TAG_DENY
+sub = []
+
+[favs.category]
+# CLI: --hl-category
+# ENVIRONMENT: MENSA_HL_CATEGORY_ALLOW
+add = []
+#
+# CLI: --no-hl-category
+# ENVIRONMENT: MENSA_HL_CATEGORY_DENY
+sub = [ "Salat" ]

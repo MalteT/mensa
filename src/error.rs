@@ -23,6 +23,10 @@ pub enum Error {
     UnableToGetTerminalSize(#[source] std::io::Error),
     #[error("failed parsing regexes specified in the configuration: {_0}")]
     ParsingFilterRegex(#[source] regex::Error),
+    #[error("failed to read geo ip database at api.geoip.rs")]
+    ReadingGeoIP(#[source] reqwest::Error),
+    #[error("failed to fetch list of mensas")]
+    FetchingMensas(#[source] reqwest::Error),
 }
 
 pub trait ResultExt<T> {
