@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use crate::{
     config::{PriceTags, CONFIG},
-    error::{pass_info, Error, ResultExt},
+    error::pass_info,
     get_sane_terminal_dimensions,
 };
 
@@ -122,7 +122,7 @@ impl Meal {
             .tags
             .iter()
             .filter(|tag| tag.is_primary())
-            .fold(String::from(" "), |s, e| s + &format!("{} ", e.to_emoji()));
+            .fold(String::from(" "), |s, e| s + &format!("{} ", e.as_emoji()));
         println!(
             "{}{}{}{}{}",
             hl_if(highlight, CATEGORY_PRE),
@@ -155,7 +155,7 @@ impl Meal {
         secondary.sort_unstable();
         let secondary_str = secondary
             .iter()
-            .fold(String::new(), |s, a| s + &format!("{} ", a.to_emoji()));
+            .fold(String::new(), |s, a| s + &format!("{} ", a.as_emoji()));
         println!(
             "{}{}  {}{}{}",
             hl_if(highlight, PRICES_PRE),

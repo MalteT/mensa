@@ -6,6 +6,7 @@ use unicode_width::UnicodeWidthStr;
 
 use std::time::Duration;
 
+mod cache;
 mod config;
 mod error;
 mod meal;
@@ -14,7 +15,7 @@ use config::{args::PlacesCommand, CONFIG};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
-use crate::{config::args::Command, error::pass_info};
+use crate::{cache::get_json, config::args::Command, error::pass_info};
 
 const ENDPOINT: &str = "https://openmensa.org/api/v2";
 const MIN_TERM_WIDTH: usize = 20;
@@ -50,7 +51,6 @@ fn real_main() -> Result<()> {
         }
         Some(Command::Tags) => print_tags(),
     }
-    // TODO: Command to show ingredient legend
     Ok(())
 }
 
@@ -60,7 +60,7 @@ fn print_tags() {
     for tag in Tag::iter() {
         const EMOJI_WIDTH: usize = 4;
         const TEXT_INDENT: &str = "     ";
-        let emoji = tag.to_emoji();
+        let emoji = tag.as_emoji();
         let emoji_len = emoji.width();
         let emoji_padded = format!(
             "{}{}",
@@ -153,12 +153,13 @@ fn fetch_meals(client: &Client) -> Result<Vec<Meal>> {
         CONFIG.mensa_id()?,
         CONFIG.date()
     );
-    Ok(client.get(url).send()?.json()?)
+    get_json(client, url, chrono::Duration::minutes(1))
 }
 
 fn print_meals(meals: &[Meal]) {
     let filter = CONFIG.get_filter();
     let favs = CONFIG.get_favs_rule();
+    println!();
     for meal in meals {
         if filter.is_match(meal) {
             let is_fav = favs.is_match(meal);
@@ -170,7 +171,7 @@ fn print_meals(meals: &[Meal]) {
 
 fn fetch_lat_long_for_ip(client: &Client) -> Result<LatLong> {
     let url = "https://api.geoip.rs";
-    client.get(url).send()?.json().map_err(Error::ReadingGeoIP)
+    get_json(client, url, chrono::Duration::minutes(30))
 }
 
 #[derive(Debug, Clone, Deserialize)]

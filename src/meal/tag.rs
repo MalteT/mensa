@@ -133,7 +133,7 @@ impl Tag {
         }
     }
 
-    pub fn to_emoji(&self) -> String {
+    pub fn as_emoji(&self) -> String {
         match self {
             Self::Vegan => "🌱".into(),
             Self::Vegetarian => "🧀".into(),

@@ -23,10 +23,14 @@ pub enum Error {
     UnableToGetTerminalSize(#[source] std::io::Error),
     #[error("failed parsing regexes specified in the configuration: {_0}")]
     ParsingFilterRegex(#[source] regex::Error),
-    #[error("failed to read geo ip database at api.geoip.rs")]
-    ReadingGeoIP(#[source] reqwest::Error),
     #[error("failed to fetch list of mensas")]
     FetchingMensas(#[source] reqwest::Error),
+    #[error("while deserializing json from local cache: {_0}")]
+    DeserializingCacheJson(#[source] serde_json::Error),
+    #[error("while writing to local cache: {_0}")]
+    WritingToCache(#[source] cacache::Error),
+    #[error("while reading metadata from local cache: {_0}")]
+    ReadingCacheMetadata(#[source] cacache::Error),
 }
 
 pub trait ResultExt<T> {
