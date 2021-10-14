@@ -2,6 +2,8 @@
 
 CLI tool to query the menu of cafeterias contained in the [OpenMensa](https://openmensa.org) database.
 
+![example](https://user-images.githubusercontent.com/11077981/137278085-75ec877a-dba0-44bb-a8dc-6c802e24178c.png)
+
 # Features
 
 - [X] Custom filters and favourites using CLI flags or the optional configuration file.
