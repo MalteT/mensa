@@ -14,12 +14,33 @@ CLI tool to query the menu of cafeterias contained in the [OpenMensa](https://op
 
 # Installation
 
-TODO
+## Cargo
+
+```console
+$ cargo install --git https://github.com/MalteT/mensa
+```
+
+## Nix
+
+This is a [Nix Flake](https://nixos.wiki/wiki/Flakes), add it to your configuration or just test the application with:
+
+```console
+$ nix run github:MalteT/mensa
+```
 
 # Usage
 
-TODO
+See `mensa --help`.
 
-# Example configuration
+- `mensa` will show meals served today for the default place mentioned in the configuration.
+  If no such configuration exists, try `mensa --id 63`. You can find the id for your place using
+- `mensa places` lists places near you based on your current IP in a default radius of 10km.
+- `mensa tags` will list the currently known meal tags like "**12** Nuts".
 
-TODO
+
+# Configuration
+
+See [config.toml](config.toml) for an example. Copy the file to:
+- `$XDG_CONFIG_DIR/mensa/config.toml` on **Linux**,
+- `$HOME/Library/Application Support/mensa/config.toml` on **macOS**,
+- ~~`{FOLDERID_RoamingAppData}\mensa\config.toml` on **Windows**~~ I don't think it'll run on Windows.. ¯\_(ツ)_/¯
