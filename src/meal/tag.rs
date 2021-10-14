@@ -17,6 +17,7 @@ lazy_static! {
         r"(?i)geschmacksverstärker",
         r"(?i)knoblauch",
         r"(?i)gluten",
+        r"(?i)lupine?",
         r"(?i)milch",
         r"(?i)senf",
         r"(?i)schalenfrüchte|nüsse",
@@ -63,6 +64,7 @@ pub enum Tag {
     FlavorEnhancer,
     Garlic,
     Gluten,
+    Lupin,
     Milk,
     Mustard,
     Nuts,
@@ -93,7 +95,7 @@ impl Tag {
         match self {
             Cow | Fish | Pig | Poultry | Vegan | Vegetarian => true,
             Alcohol | Antioxidant | Blackened | Coloring | Egg | FlavorEnhancer | Garlic
-            | Gluten | Milk | Mustard | Nuts | Phosphate | Preservative | Sellery | Sesame
+            | Gluten | Lupin | Milk | Mustard | Nuts | Phosphate | Preservative | Sellery | Sesame
             | Soy | Sulfite | Sweetener => false,
         }
     }
@@ -116,6 +118,7 @@ impl Tag {
             Self::FlavorEnhancer => "Contains artificial flavor enhancer",
             Self::Garlic => "Contains garlic",
             Self::Gluten => "Contains gluten",
+            Self::Lupin => "Contains lupin",
             Self::Milk => "Contains milk",
             Self::Mustard => "Contains mustard",
             Self::Nuts => "Contains nuts",
