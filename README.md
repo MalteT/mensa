@@ -43,4 +43,4 @@ See `mensa --help`.
 See [config.toml](config.toml) for an example. Copy the file to:
 - `$XDG_CONFIG_DIR/mensa/config.toml` on **Linux**,
 - `$HOME/Library/Application Support/mensa/config.toml` on **macOS**,
-- ~~`{FOLDERID_RoamingAppData}\mensa\config.toml` on **Windows**~~ I don't think it'll run on Windows.. ¯\_(ツ)_/¯
+- ~~`{FOLDERID_RoamingAppData}\mensa\config.toml` on **Windows**~~ I don't think it'll run on Windows.. 🤷‍♀️
