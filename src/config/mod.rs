@@ -32,7 +32,7 @@ pub struct Config {
 #[serde(rename_all(deserialize = "kebab-case"))]
 pub struct ConfigFile {
     #[serde(default)]
-    default_mensa_id: Option<usize>,
+    default_canteen_id: Option<usize>,
     #[serde(default)]
     price_tags: HashSet<PriceTags>,
     #[serde(default)]
@@ -62,14 +62,17 @@ impl ConfigFile {
 }
 
 impl Config {
-    pub fn mensa_id(&self) -> Result<usize> {
-        // Get the default mensa id from the config file
+    pub fn canteen_id(&self) -> Result<usize> {
+        // Get the default canteen id from the config file
         let default = self
             .file
             .as_ref()
-            .map(|conf| conf.default_mensa_id)
+            .map(|conf| conf.default_canteen_id)
             .flatten();
-        self.args.mensa_id.or(default).ok_or(Error::MensaIdMissing)
+        self.args
+            .canteen_id
+            .or(default)
+            .ok_or(Error::CanteenIdMissing)
     }
 
     pub fn date(&self) -> &chrono::NaiveDate {

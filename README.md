@@ -32,9 +32,10 @@ $ nix run github:MalteT/mensa
 
 See `mensa --help`.
 
-- `mensa` will show meals served today for the default place mentioned in the configuration.
-  If no such configuration exists, try `mensa --id 63`. You can find the id for your place using
-- `mensa places` lists places near you based on your current IP in a default radius of 10km.
+- `mensa` will show meals served today for the default canteen mentioned in the configuration.
+  If no such configuration exists, try `mensa --id 63`.
+  You can find the id for your canteen using
+- `mensa canteens` lists canteens near you based on your current IP in a default radius of 10km.
 - `mensa tags` will list the currently known meal tags like "**12** Nuts".
 
 

@@ -13,9 +13,9 @@ use super::PriceTags;
 
 #[derive(Debug, StructOpt)]
 pub struct Args {
-    /// Mensa ID for which to fetch things.
+    /// Canteen ID for which to fetch meals.
     #[structopt(long = "id", short = "i", env = "MENSA_ID")]
-    pub mensa_id: Option<usize>,
+    pub canteen_id: Option<usize>,
 
     /// Date for which to display information.
     ///
@@ -82,8 +82,8 @@ pub struct Args {
 
 #[derive(Debug, StructOpt)]
 pub enum Command {
-    /// List places near you.
-    Places(PlacesCommand),
+    /// List canteens close to you.
+    Canteens(CanteensCommand),
     /// List all known tags.
     Tags,
     /// Default. Show meals.
@@ -91,14 +91,14 @@ pub enum Command {
 }
 
 #[derive(Debug, StructOpt)]
-pub struct PlacesCommand {
+pub struct CanteensCommand {
     /// Latitude of your position. If omitted, geoip will be used to guess it.
     #[structopt(long)]
     pub lat: Option<f32>,
     /// Longitude of your position. If omitted, geoip will be used to guess it.
     #[structopt(long)]
     pub long: Option<f32>,
-    /// Radius around your position to search for places.
+    /// Maximum distance of potential canteens from your position in km.
     #[structopt(long, short, default_value = "10")]
     pub radius: f32,
 }

@@ -11,8 +11,8 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
     #[error("could not parse date")]
     InvalidDateInArgs,
-    #[error("no default mensa id is defined and `--id` was not given")]
-    MensaIdMissing,
+    #[error("no default canteen id is defined and `--id` was not given")]
+    CanteenIdMissing,
     #[error("could not read configuration file: {_0}")]
     ReadingConfig(#[source] std::io::Error),
     #[error("could not deserialize configuration file: {_0}")]
@@ -23,8 +23,8 @@ pub enum Error {
     UnableToGetTerminalSize(#[source] std::io::Error),
     #[error("failed parsing regexes specified in the configuration: {_0}")]
     ParsingFilterRegex(#[source] regex::Error),
-    #[error("failed to fetch list of mensas")]
-    FetchingMensas(#[source] reqwest::Error),
+    #[error("failed to fetch list of canteens")]
+    FetchingCanteens(#[source] reqwest::Error),
     #[error("while deserializing json from local cache: {_0}")]
     DeserializingCacheJson(#[source] serde_json::Error),
     #[error("while writing to local cache: {_0}")]

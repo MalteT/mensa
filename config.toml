@@ -19,12 +19,12 @@
 # ------------------------------------------------------------
 # --------------------- Default Mensa ID ---------------------
 # ------------------------------------------------------------
-# The default mensa id to query information for.
+# The default canteen id to query information for.
 # If this is unspecified, the id needs to be defined per environment or cli.
 #
 # CLI: -i, --id ID
 # ENVIRONMENT: MENSA_ID
-default-mensa-id = 63
+default-canteen-id = 63
 
 # ------------------------------------------------------------
 # ------------------------ Price Tags ------------------------

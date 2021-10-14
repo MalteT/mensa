@@ -95,8 +95,8 @@ impl Tag {
         match self {
             Cow | Fish | Pig | Poultry | Vegan | Vegetarian => true,
             Alcohol | Antioxidant | Blackened | Coloring | Egg | FlavorEnhancer | Garlic
-            | Gluten | Lupin | Milk | Mustard | Nuts | Phosphate | Preservative | Sellery | Sesame
-            | Soy | Sulfite | Sweetener => false,
+            | Gluten | Lupin | Milk | Mustard | Nuts | Phosphate | Preservative | Sellery
+            | Sesame | Soy | Sulfite | Sweetener => false,
         }
     }
 

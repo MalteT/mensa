@@ -11,7 +11,7 @@ mod config;
 mod error;
 mod meal;
 
-use config::{args::PlacesCommand, CONFIG};
+use config::{args::CanteensCommand, CONFIG};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
@@ -42,11 +42,11 @@ fn real_main() -> Result<()> {
             // TODO: More pizzazz
             print_meals(&meals);
         }
-        Some(Command::Places(ref cmd)) => {
-            let places = fetch_mensas(&client, cmd)?;
+        Some(Command::Canteens(ref cmd)) => {
+            let canteens = fetch_canteens(&client, cmd)?;
             println!();
-            for place in places {
-                place.print_to_terminal();
+            for canteen in canteens {
+                canteen.print_to_terminal();
             }
         }
         Some(Command::Tags) => print_tags(),
@@ -89,24 +89,24 @@ fn print_tags() {
     }
 }
 
-fn fetch_mensas(client: &Client, cmd: &PlacesCommand) -> Result<Vec<Mensa>> {
+fn fetch_canteens(client: &Client, cmd: &CanteensCommand) -> Result<Vec<Canteen>> {
     let (lat, long) = complete_lat_long(client, cmd)?;
     let url = format!(
         "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
         ENDPOINT, lat, long, cmd.radius,
     );
     info!(
-        "Fetching mensas for lat: {}, long: {} with radius: {}",
+        "Fetching canteens for lat: {}, long: {} with radius: {}",
         lat, long, cmd.radius
     );
     client
         .get(pass_info(url))
         .send()?
         .json()
-        .map_err(Error::FetchingMensas)
+        .map_err(Error::FetchingCanteens)
 }
 
-fn complete_lat_long(client: &Client, cmd: &PlacesCommand) -> Result<(f32, f32)> {
+fn complete_lat_long(client: &Client, cmd: &CanteensCommand) -> Result<(f32, f32)> {
     Ok(if cmd.lat.is_none() || cmd.long.is_none() {
         let guessed = fetch_lat_long_for_ip(client)?;
         (
@@ -120,7 +120,7 @@ fn complete_lat_long(client: &Client, cmd: &PlacesCommand) -> Result<(f32, f32)>
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct Mensa {
+struct Canteen {
     id: usize,
     name: String,
     city: String,
@@ -128,7 +128,7 @@ struct Mensa {
     coordinates: [f32; 2],
 }
 
-impl Mensa {
+impl Canteen {
     pub fn print_to_terminal(&self) {
         use termion::{color, style};
         println!(
@@ -150,7 +150,7 @@ fn fetch_meals(client: &Client) -> Result<Vec<Meal>> {
     let url = format!(
         "{}/canteens/{}/days/{}/meals",
         ENDPOINT,
-        CONFIG.mensa_id()?,
+        CONFIG.canteen_id()?,
         CONFIG.date()
     );
     get_json(client, url, chrono::Duration::minutes(1))
