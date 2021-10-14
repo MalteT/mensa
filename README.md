@@ -1,36 +1,23 @@
-# [WIP] Mensa
+# Mensa
 
-**Note**: Discontinued, as it was only for learning some rust.
+CLI tool to query the menu of cafeterias contained in the [OpenMensa](https://openmensa.org) database.
 
-CLI tool to query the menu of cafeterias in Leipzig that are listed [here](https://www.studentenwerk-leipzig.de/mensen-cafeterien/speiseplan).
+# Features
+
+- [X] Custom filters and favourites using CLI flags or the optional configuration file.
+- [X] List cafeterias close to you based on GeoIP.
+- [X] All request are cached locally.
+- [X] Fuzzy date parsing based on [date_time_parser](https://lib.rs/crates/date_time_parser).
+- [ ] List your favourite meals in cafeterias near you.
+
+# Installation
+
+TODO
 
 # Usage
 
-Use [Rust](https://www.rust-lang.org/)s build tool [Cargo](https://crates.io/) to build and, optionally, install this program:
-```
- > cargo build --release
- > cargo install --path . --force
-```
+TODO
 
-```
-mensa [ at LOCATION ]
-      [ no [ fish | pig | alcohol ] ]
-      [ vegan | veggie | vegetarian | flexible ]
-      [ on [ today | tomorrow | yyyy-mm-dd ]
-```
-(A more complete syntax can be found [here](/search_format.pest))
+# Example configuration
 
-# TODO
-
-```
-src/meal.rs
-44:    /// - FIXME: No food on sundays!
-45:    /// - FIXME: Refactor
-194:/// TODO: Badges
-195:/// TODO: Price
-
-```
-
-# Bugs
-
-This piece of software contains carefully selected bugs. If some of these offend you or keep you from finding the right place to eat lunch, please do report them. *This is an alpha.*
+TODO
