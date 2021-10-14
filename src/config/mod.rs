@@ -8,7 +8,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::error::{pass_info, Error, Result, ResultExt};
+use crate::{
+    error::{pass_info, Error, Result, ResultExt},
+    DIR,
+};
 
 use self::{
     args::Args,
@@ -135,18 +138,13 @@ impl Config {
 
     fn assemble() -> Result<Self> {
         let args = Args::from_args();
-        let path = args
-            .config
-            .clone()
-            .or_else(|| default_config_path().log_warn());
-        let file = path.map(ConfigFile::load_or_log).flatten();
+        let path = args.config.clone().unwrap_or_else(default_config_path);
+        let file = ConfigFile::load_or_log(pass_info(path));
         let config = pass_info(Config { file, args });
         Ok(config)
     }
 }
 
-fn default_config_path() -> Result<PathBuf> {
-    dirs::config_dir()
-        .ok_or(Error::NoConfigDir)
-        .map(|base| base.join("mensa/config.toml"))
+fn default_config_path() -> PathBuf {
+    DIR.config_dir().join("config.toml")
 }

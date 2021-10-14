@@ -1,3 +1,5 @@
+use directories_next::ProjectDirs;
+use lazy_static::lazy_static;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use strum::IntoEnumIterator;
@@ -19,6 +21,11 @@ use crate::{cache::get_json, config::args::Command, error::pass_info};
 
 const ENDPOINT: &str = "https://openmensa.org/api/v2";
 const MIN_TERM_WIDTH: usize = 20;
+
+lazy_static! {
+    static ref DIR: ProjectDirs =
+        ProjectDirs::from("rocks", "tammena", "mensa").expect("Could not detect home directory");
+}
 
 fn main() -> Result<()> {
     let res = real_main();

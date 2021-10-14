@@ -6,13 +6,13 @@ use serde::de::DeserializeOwned;
 
 use std::{path::PathBuf, str::from_utf8};
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    DIR,
+};
 
 lazy_static! {
-    static ref CACHE: PathBuf = {
-        // TODO: Don't unwrap? Fallback?
-        dirs::cache_dir().unwrap().join("mensa")
-    };
+    static ref CACHE: PathBuf = DIR.cache_dir().into();
 }
 
 pub fn get_json<U, T>(client: &Client, url: U, ttl: Duration) -> Result<T>

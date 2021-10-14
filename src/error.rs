@@ -17,8 +17,6 @@ pub enum Error {
     ReadingConfig(#[source] std::io::Error),
     #[error("could not deserialize configuration file: {_0}")]
     DeserializingConfig(#[source] toml::de::Error),
-    #[error("no configuration directory found. On Linux, try setting $XDG_CONFIG_DIR")]
-    NoConfigDir,
     #[error("failed to read terminal size for standard output")]
     UnableToGetTerminalSize(#[source] std::io::Error),
     #[error("failed parsing regexes specified in the configuration: {_0}")]
