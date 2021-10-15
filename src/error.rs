@@ -21,8 +21,6 @@ pub enum Error {
     UnableToGetTerminalSize(#[source] std::io::Error),
     #[error("failed parsing regexes specified in the configuration: {_0}")]
     ParsingFilterRegex(#[source] regex::Error),
-    #[error("failed to fetch list of canteens")]
-    FetchingCanteens(#[source] reqwest::Error),
     #[error("while deserializing json from local cache: {_0}")]
     DeserializingCacheJson(#[source] serde_json::Error),
     #[error("while writing to local cache: {_0}")]

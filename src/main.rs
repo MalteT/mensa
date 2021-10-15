@@ -1,14 +1,14 @@
+use chrono::Duration;
 use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use strum::IntoEnumIterator;
-use tracing::{error, info};
+use tracing::error;
 use unicode_width::UnicodeWidthStr;
 
-use std::time::Duration;
-
 mod cache;
+mod canteen;
 mod config;
 mod error;
 mod meal;
@@ -17,7 +17,7 @@ use config::{args::CanteensCommand, CONFIG};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
-use crate::{cache::get_json, config::args::Command, error::pass_info};
+use crate::{cache::get_json, canteen::Canteen, config::args::Command};
 
 const ENDPOINT: &str = "https://openmensa.org/api/v2";
 const MIN_TERM_WIDTH: usize = 20;
@@ -25,6 +25,9 @@ const MIN_TERM_WIDTH: usize = 20;
 lazy_static! {
     static ref DIR: ProjectDirs =
         ProjectDirs::from("rocks", "tammena", "mensa").expect("Could not detect home directory");
+    static ref TTL_GEOIP: Duration = Duration::minutes(5);
+    static ref TTL_CANTEENS: Duration = Duration::days(1);
+    static ref TTL_MEALS: Duration = Duration::hours(1);
 }
 
 fn main() -> Result<()> {
@@ -39,7 +42,7 @@ fn main() -> Result<()> {
 fn real_main() -> Result<()> {
     tracing_subscriber::fmt::init();
     let client = Client::builder()
-        .timeout(Duration::from_secs(1))
+        .timeout(std::time::Duration::from_secs(1))
         .build()
         .unwrap();
 
@@ -50,7 +53,7 @@ fn real_main() -> Result<()> {
             print_meals(&meals);
         }
         Some(Command::Canteens(ref cmd)) => {
-            let canteens = fetch_canteens(&client, cmd)?;
+            let canteens = Canteen::fetch(&client, cmd)?;
             println!();
             for canteen in canteens {
                 canteen.print_to_terminal();
@@ -96,23 +99,6 @@ fn print_tags() {
     }
 }
 
-fn fetch_canteens(client: &Client, cmd: &CanteensCommand) -> Result<Vec<Canteen>> {
-    let (lat, long) = complete_lat_long(client, cmd)?;
-    let url = format!(
-        "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
-        ENDPOINT, lat, long, cmd.radius,
-    );
-    info!(
-        "Fetching canteens for lat: {}, long: {} with radius: {}",
-        lat, long, cmd.radius
-    );
-    client
-        .get(pass_info(url))
-        .send()?
-        .json()
-        .map_err(Error::FetchingCanteens)
-}
-
 fn complete_lat_long(client: &Client, cmd: &CanteensCommand) -> Result<(f32, f32)> {
     Ok(if cmd.lat.is_none() || cmd.long.is_none() {
         let guessed = fetch_lat_long_for_ip(client)?;
@@ -126,33 +112,6 @@ fn complete_lat_long(client: &Client, cmd: &CanteensCommand) -> Result<(f32, f32
     })
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct Canteen {
-    id: usize,
-    name: String,
-    city: String,
-    address: String,
-    coordinates: [f32; 2],
-}
-
-impl Canteen {
-    pub fn print_to_terminal(&self) {
-        use termion::{color, style};
-        println!(
-            "{}{}{:>4} {}{}{}\n     {}{}{}",
-            style::Bold,
-            color::Fg(color::LightYellow),
-            self.id,
-            color::Fg(color::Reset),
-            self.name,
-            style::Reset,
-            color::Fg(color::LightBlack),
-            self.address,
-            color::Fg(color::Reset),
-        );
-    }
-}
-
 fn fetch_meals(client: &Client) -> Result<Vec<Meal>> {
     let url = format!(
         "{}/canteens/{}/days/{}/meals",
@@ -160,7 +119,7 @@ fn fetch_meals(client: &Client) -> Result<Vec<Meal>> {
         CONFIG.canteen_id()?,
         CONFIG.date()
     );
-    get_json(client, url, chrono::Duration::minutes(1))
+    get_json(client, url, *TTL_MEALS)
 }
 
 fn print_meals(meals: &[Meal]) {
@@ -178,7 +137,7 @@ fn print_meals(meals: &[Meal]) {
 
 fn fetch_lat_long_for_ip(client: &Client) -> Result<LatLong> {
     let url = "https://api.geoip.rs";
-    get_json(client, url, chrono::Duration::minutes(30))
+    get_json(client, url, *TTL_GEOIP)
 }
 
 #[derive(Debug, Clone, Deserialize)]
