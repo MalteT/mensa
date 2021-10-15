@@ -9,6 +9,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("reqwest error: {_0}")]
     Reqwest(#[from] reqwest::Error),
+    #[error("serialization failed while {_1}: {_0}")]
+    Serializing(#[source] serde_json::Error, &'static str),
+    #[error("deserialization failed while {_1}: {_0}")]
+    Deserializing(#[source] serde_json::Error, &'static str),
     #[error("could not parse date")]
     InvalidDateInArgs,
     #[error("no default canteen id is defined and `--id` was not given")]
@@ -21,12 +25,18 @@ pub enum Error {
     UnableToGetTerminalSize(#[source] std::io::Error),
     #[error("failed parsing regexes specified in the configuration: {_0}")]
     ParsingFilterRegex(#[source] regex::Error),
-    #[error("while deserializing json from local cache: {_0}")]
-    DeserializingCacheJson(#[source] serde_json::Error),
     #[error("while writing to local cache: {_0}")]
     WritingToCache(#[source] cacache::Error),
+    #[error("while performing I/O on cache: {_0}")]
+    WritingCache(#[source] std::io::Error),
     #[error("while reading metadata from local cache: {_0}")]
     ReadingCacheMetadata(#[source] cacache::Error),
+    #[error("tried to parse invalid url. This is probably a bug! {_0}")]
+    InvalidUrl(#[source] reqwest::Error),
+    #[error("Url {_0:?} returned status {_1}")]
+    NonSuccessStatusCode(String, reqwest::StatusCode),
+    #[error("while reading local cache: {_0}")]
+    ReadingCache(#[source] cacache::Error),
 }
 
 pub trait ResultExt<T> {
