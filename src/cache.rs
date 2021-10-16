@@ -1,164 +1,240 @@
+//! Caching build around [`cacache`] and [`reqwest`].
+//!
+//! ```text
+//!            No
+//!   Cached? -----------------------------------+
+//!    |                                         |
+//!    | Yes                                     |
+//!    v          No                 No          v       FAIL
+//!   TTL valid? -----> ETAG valid? ----------> Get it! --------------+
+//!    |                 |               ^       |                    |
+//!    | Yes             | Yes           |       |                    |
+//!    v                 v               |       v                    |
+//!   Load cached! <--- Update cache     |      Update cache!*        |
+//!    |    |           metadata!*       |       |                    |
+//!    |    |FAIL                        |       |                    |
+//!    |    |                            |       |                    |
+//!    |    +----------------------------+       |                    |
+//!    |                                         |                    |
+//!    |                                         |                    |
+//!    |<----------------------------------------+                    |
+//!    |                                                              |
+//!    v                                                              v
+//!    OK                                                           FAIL
+//!
+//! * Ignores all errors
+//! ```
 use cacache::Metadata;
 use chrono::{Duration, TimeZone};
 use lazy_static::lazy_static;
 use regex::Regex;
-use reqwest::{
-    blocking::{Client, Response},
-    StatusCode,
-};
+use reqwest::{IntoUrl, StatusCode, blocking::{Client, Response}};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use tracing::{info, warn};
 
-use std::{io::Write, path::PathBuf};
+#[cfg(test)]
+mod tests;
+mod wrapper;
 
-use crate::{
-    error::{Error, Result},
-    DIR,
-};
+pub use wrapper::clear_cache as clear;
 
+use crate::error::{Error, Result, ResultExt};
+
+/// Returned by most functions in this module.
 type TextAndHeaders = (String, Headers);
 
 lazy_static! {
-    static ref CACHE: PathBuf = DIR.cache_dir().into();
-    static ref LINK_NEXT_PAGE_RE: Regex = Regex::new(r#"<(.*?)>; rel="first""#).unwrap();
+    /// Regex to find the next page in a link header
+    /// Probably only applicable to the current version of the openmensa API.
+    // TODO: Improve this. How do these LINK headers look in general?
+    static ref LINK_NEXT_PAGE_RE: Regex = Regex::new(r#"<([^>]*)>; rel="next""#).unwrap();
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Assortment of headers relevant to the program.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Headers {
     pub etag: Option<String>,
-    pub total_pages: Option<usize>,
+    pub this_page: Option<usize>,
     pub next_page: Option<String>,
+    pub last_page: Option<usize>,
 }
 
-/// Fetch url from the cache or web.
-///
-/// 1) If the url exists in the cache and the age of the entry is less than `min_ttl`, get that.
-/// 2) If the url exists in the cache, but is stale,
-///    fetch the head of of the url and compare ETAGs:
-///    1) If the ETAG is valid, update the cache entry age and return the cache entry.
-///    2) Else, get and update the cache.
-/// 3) If the entry does not exist, get it and update the cache.
-pub fn get<Map, S, U>(client: &Client, url: S, min_ttl: Duration, map: Map) -> Result<U>
+/// Possible results from a cache lookup.
+#[derive(Debug, PartialEq)]
+enum CacheResult<T> {
+    /// Missed, no entry exists.
+    Miss,
+    /// Entry exists, but exceeded it's local TTL.
+    Stale(Headers, Metadata),
+    /// Entry exists and is fresh.
+    Hit(T),
+}
+
+/// Wrapper around [`get`] for responses that contain json.
+pub fn get_json<U, T>(client: &Client, url: U, local_ttl: Duration) -> Result<T>
 where
-    S: AsRef<str>,
-    Map: FnOnce(String, Headers) -> Result<U>,
-{
-    let url = url.as_ref();
-    let meta = get_metadata(url)?;
-    // If metadata exists, use that
-    let (text, headers): (String, Headers) = match meta {
-        Some(meta) => {
-            let age = get_cache_age(&meta);
-            if age > min_ttl {
-                // Stale, let's compare ETAGs
-                let last_headers: Headers = serde_json::from_value(meta.metadata.clone())
-                    .map_err(|why| Error::Deserializing(why, "loading headers from cache"))?;
-                get_from_cache_or_update_if_stale(client, url, last_headers.etag.as_ref(), &meta)?
-            } else {
-                // Fresh, only fetch if an error occurs
-                match cacache::read_hash_sync(&*CACHE, &meta.integrity) {
-                    Ok(raw) => to_text_and_headers(raw, &meta.metadata)?,
-                    Err(_) => get_and_update_cache(client, url)?,
-                }
-            }
-        }
-        None => get_and_update_cache(client, url)?,
-    };
-    map(text, headers)
-}
-
-fn get_from_cache_or_update_if_stale(
-    client: &Client,
-    url: &str,
-    etag: Option<&String>,
-    meta: &Metadata,
-) -> Result<TextAndHeaders> {
-    let etag_key = reqwest::header::IF_NONE_MATCH;
-    // Get with IF_NONE_MATCH to conditionally request an update
-    let mut builder = client.get(url);
-    if let Some(etag) = etag {
-        builder = builder.header(etag_key, etag);
-    }
-    let resp = builder.send().map_err(Error::Reqwest)?;
-    // Status Code 304 signals a fresh cache
-    if resp.status() == StatusCode::NOT_MODIFIED {
-        get_from_cache_and_update_timestamp(url, meta)
-    } else if resp.status().is_success() {
-        update_cache(url, resp)
-    } else {
-        Err(Error::NonSuccessStatusCode(url.to_string(), resp.status()))
-    }
-}
-
-fn update_cache(url: &str, resp: Response) -> Result<TextAndHeaders> {
-    let header: Headers = resp.headers().clone().into();
-    let header_serialized = serde_json::to_value(header.clone())
-        .map_err(|why| Error::Serializing(why, "writing headers to local cache"))?;
-    let text = resp.text().map_err(Error::Reqwest)?;
-    let mut writer = cacache::WriteOpts::new()
-        .metadata(header_serialized)
-        .open_sync(&*CACHE, url)
-        .map_err(Error::WritingToCache)?;
-    writer
-        .write_all(text.as_bytes())
-        .map_err(Error::WritingCache)?;
-    writer.commit().map_err(Error::WritingToCache)?;
-    Ok((text, header))
-}
-
-fn get_from_cache_and_update_timestamp(url: &str, meta: &Metadata) -> Result<TextAndHeaders> {
-    // TODO: We could still request the content if this fails..
-    let raw = cacache::read_hash_sync(&*CACHE, &meta.integrity).map_err(Error::ReadingCache)?;
-    // TODO: Update the timestamp in a smarter way..
-    // Just rewrite and ignore errors
-    cacache::write_sync(&*CACHE, url, &raw).ok();
-    // This was written to the cach as utf8
-    to_text_and_headers(raw, &meta.metadata)
-}
-
-fn to_text_and_headers(raw: Vec<u8>, meta: &serde_json::Value) -> Result<TextAndHeaders> {
-    // This was written to the cache as utf8
-    let utf8 = String::from_utf8(raw).unwrap();
-    // TODO: This could fail in between versions
-    let headers: Headers = serde_json::from_value(meta.clone()).unwrap();
-    Ok((utf8, headers))
-}
-
-fn get_metadata(url: &str) -> Result<Option<Metadata>> {
-    cacache::metadata_sync(&*CACHE, url).map_err(Error::ReadingCacheMetadata)
-}
-
-pub fn get_json<U, T>(client: &Client, url: U, min_ttl: Duration) -> Result<T>
-where
-    U: AsRef<str>,
+    U: IntoUrl,
     T: DeserializeOwned,
 {
-    get(client, url, min_ttl, |text, _| {
+    get(client, url, local_ttl, |text, _| {
+        // TODO: Check content header?
         serde_json::from_str(&text).map_err(|why| Error::Deserializing(why, "fetching json"))
     })
 }
 
-fn get_and_update_cache(client: &Client, url: &str) -> Result<TextAndHeaders> {
-    let resp = client.get(url).send().map_err(Error::Reqwest)?;
-    let header: Headers = resp.headers().clone().into();
-    let header_serialized = serde_json::to_value(header.clone())
-        .map_err(|why| Error::Serializing(why, "writing headers to cache"))?;
-    let text = resp.text().map_err(Error::Reqwest)?;
-    let mut writer = cacache::WriteOpts::new()
-        .metadata(header_serialized)
-        .open_sync(&*CACHE, url)
-        .map_err(Error::WritingToCache)?;
-    writer
-        .write_all(text.as_bytes())
-        .map_err(Error::WritingCache)?;
-    writer.commit().map_err(Error::WritingToCache)?;
-    Ok((text, header))
+/// Generic method for fetching remote url-based resources.
+pub fn get<Map, U, T>(client: &Client, url: U, local_ttl: Duration, map: Map) -> Result<T>
+where
+    U: IntoUrl,
+    Map: FnOnce(String, Headers) -> Result<T>,
+{
+    // Normalize the url at this point since we're using it
+    // as the cache key
+    let url = url.into_url().map_err(Error::Reqwest)?;
+    let url = url.as_ref();
+    info!("Fetching {:?}", url);
+    // Try getting the value from cache, if that fails, query the web
+    let (text, headers) = match try_read_cache(url, local_ttl) {
+        Ok(CacheResult::Hit(text_and_headers)) => {
+            info!("Hit cache on {:?}", url);
+            text_and_headers
+        }
+        Ok(CacheResult::Miss) => {
+            info!("Missed cache on {:?}", url);
+            get_and_update_cache(client, url, None, None)?
+        }
+        Ok(CacheResult::Stale(old_headers, meta)) => {
+            info!("Stale cache on {:?}", url);
+            // The cache is stale but may still be valid
+            // Request the resource with set IF_NONE_MATCH tag and update
+            // the caches metadata or value
+            match get_and_update_cache(client, url, old_headers.etag, Some(meta)) {
+                Ok(tah) => tah,
+                Err(why) => {
+                    warn!("{}", why);
+                    // Fetching and updating failed for some reason, retry
+                    // without the IF_NONE_MATCH tag and fail if unsuccessful
+                    get_and_update_cache(client, url, None, None)?
+                }
+            }
+        }
+        Err(why) => {
+            // Fetching from the cache failed for some reason, just
+            // request the resource and update the cache
+            warn!("{}", why);
+            get_and_update_cache(client, url, None, None)?
+        }
+    };
+    // Apply the map and return the result
+    map(text, headers)
 }
 
-fn get_cache_age(meta: &Metadata) -> Duration {
+/// Try reading the cache content.
+///
+/// This can fail due to errors, but also exits with a [`CacheResult`].
+fn try_read_cache(url: &str, local_ttl: Duration) -> Result<CacheResult<TextAndHeaders>> {
+    // Try reading the cache's metadata
+    match wrapper::read_cache_meta(url)? {
+        Some(meta) => {
+            // Metadata exists
+            if is_fresh(&meta, &local_ttl) {
+                // Fresh, try to fetch from cache
+                let raw = wrapper::read_cache(&meta)?;
+                to_text_and_headers(raw, &meta.metadata).map(CacheResult::Hit)
+            } else {
+                // Local check failed, but the value may still be valid
+                let old_headers = headers_from_metadata(&meta)?;
+                Ok(CacheResult::Stale(old_headers, meta))
+            }
+        }
+        None => {
+            // No metadata exists, assuming no value exists either
+            Ok(CacheResult::Miss)
+        }
+    }
+}
+
+/// Request the resource and update the cache
+///
+/// This should only be called if the cache fetch already failed.
+///
+/// If an optional `etag` is provided, add the If-None-Match header, and thus
+/// only get an update if the new ETAG differs from the given `etag`.
+fn get_and_update_cache(
+    client: &Client,
+    url: &str,
+    etag: Option<String>,
+    meta: Option<Metadata>,
+) -> Result<TextAndHeaders> {
+    // Construct the request
+    let mut builder = client.get(url);
+    // Add If-None-Match header, if etag is present
+    if let Some(etag) = etag {
+        let etag_key = reqwest::header::IF_NONE_MATCH;
+        builder = builder.header(etag_key, etag);
+    }
+    let resp = wrapper::send_request(builder)?;
+    let status = resp.status();
+    info!("Request to {:?} returned {}", url, status);
+    if status == StatusCode::NOT_MODIFIED && meta.is_some() {
+        // If we received code 304 NOT MODIFIED (after adding the If-None-Match)
+        // our cache is actually fresh and it's timestamp should be updated
+        let headers = resp.headers().clone().into();
+        // Just verified, that meta can be unwrapped!
+        touch_and_read_cache(url, &meta.unwrap(), headers)
+    } else if status.is_success() {
+        // Request returned successfully, now update the cache with that
+        update_cache_from_response(resp)
+    } else {
+        // Some error occured, just error out
+        // TODO: Retrying would be an option
+        Err(Error::NonSuccessStatusCode(url.to_string(), resp.status()))
+    }
+}
+
+/// Extract body and headers from response and update the cache.
+///
+/// Only relevant headers will be kept.
+fn update_cache_from_response(resp: Response) -> Result<TextAndHeaders> {
+    let headers: Headers = resp.headers().clone().into();
+    let url = resp.url().as_str().to_owned();
+    let text = resp.text().map_err(Error::Reqwest)?;
+    wrapper::write_cache(&headers, &url, &text)?;
+    Ok((text, headers))
+}
+
+/// Reset the cache's TTL, read and return it.
+fn touch_and_read_cache(url: &str, meta: &Metadata, headers: Headers) -> Result<TextAndHeaders> {
+    let raw = wrapper::read_cache(meta)?;
+    let (text, _) = to_text_and_headers(raw, &meta.metadata)?;
+    // TODO: Update the timestamp in a smarter way..
+    // Do not fall on errors, this doesn’t matter
+    wrapper::write_cache(&headers, url, &text).log_warn();
+    Ok((text, headers))
+}
+
+/// Deserialize the metadata into [`Headers`].
+fn headers_from_metadata(meta: &Metadata) -> Result<Headers> {
+    serde_json::from_value(meta.metadata.clone())
+        .map_err(|why| Error::Deserializing(why, "loading headers from cache"))
+}
+
+/// Compares metadata age and local TTL.
+fn is_fresh(meta: &Metadata, local_ttl: &Duration) -> bool {
     let now = chrono::Utc::now();
     let age_ms = meta.time;
     let cache_age = chrono::Utc.timestamp((age_ms / 1000) as i64, (age_ms % 1000) as u32);
-    now - cache_age
+    now - cache_age < *local_ttl
+}
+
+/// Helper to convert raw text and serialized json to [`TextAndHeaders`].
+fn to_text_and_headers(raw: Vec<u8>, meta: &serde_json::Value) -> Result<TextAndHeaders> {
+    let utf8 = String::from_utf8(raw).map_err(Error::DecodingUtf8)?;
+    let headers: Headers = serde_json::from_value(meta.clone()).map_err(|why| {
+        Error::Deserializing(why, "reading headers from cache. Try clearing the cache.")
+    })?;
+    Ok((utf8, headers))
 }
 
 impl From<reqwest::header::HeaderMap> for Headers {
@@ -171,8 +247,8 @@ impl From<reqwest::header::HeaderMap> for Headers {
                 Some(utf8.to_string())
             })
             .flatten();
-        let total_pages = map
-            .get("x-total-pages")
+        let this_page = map
+            .get("x-current-page")
             .map(|raw| {
                 let utf8 = raw.to_str().ok()?;
                 utf8.parse().ok()
@@ -186,9 +262,17 @@ impl From<reqwest::header::HeaderMap> for Headers {
                 Some(captures[1].to_owned())
             })
             .flatten();
+        let last_page = map
+            .get("x-total-pages")
+            .map(|raw| {
+                let utf8 = raw.to_str().ok()?;
+                utf8.parse().ok()
+            })
+            .flatten();
         Self {
             etag,
-            total_pages,
+            this_page,
+            last_page,
             next_page,
         }
     }

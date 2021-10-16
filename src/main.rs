@@ -7,6 +7,8 @@ use strum::IntoEnumIterator;
 use tracing::error;
 use unicode_width::UnicodeWidthStr;
 
+use std::time::Duration as StdDuration;
+
 mod cache;
 mod canteen;
 mod config;
@@ -28,6 +30,7 @@ lazy_static! {
     static ref TTL_GEOIP: Duration = Duration::minutes(5);
     static ref TTL_CANTEENS: Duration = Duration::days(1);
     static ref TTL_MEALS: Duration = Duration::hours(1);
+    static ref REQUEST_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 }
 
 fn main() -> Result<()> {
@@ -40,11 +43,14 @@ fn main() -> Result<()> {
 }
 
 fn real_main() -> Result<()> {
+    // Initialize logger
     tracing_subscriber::fmt::init();
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(1))
-        .build()
-        .unwrap();
+    // Construct client used for all requests
+    let client = Client::builder().timeout(*REQUEST_TIMEOUT).build().unwrap();
+    // Clear cache if requested
+    if CONFIG.args.clear_cache {
+        cache::clear()?;
+    }
 
     match CONFIG.args.command {
         Some(Command::Show) | None => {

@@ -1,5 +1,5 @@
 use chrono::Duration;
-use reqwest::{blocking::Client, IntoUrl, Url};
+use reqwest::blocking::Client;
 use serde::{de::DeserializeOwned, Deserialize};
 use tracing::info;
 
@@ -9,8 +9,10 @@ use crate::{
     cache, complete_lat_long,
     config::args::CanteensCommand,
     error::{Error, Result},
-    ENDPOINT, TTL_CANTEENS,
+    get_sane_terminal_dimensions, ENDPOINT, TTL_CANTEENS,
 };
+
+const ADRESS_INDENT: &str = "     ";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Canteen {
@@ -24,8 +26,15 @@ pub struct Canteen {
 impl Canteen {
     pub fn print_to_terminal(&self) {
         use termion::{color, style};
+        let (width, _) = get_sane_terminal_dimensions();
+        let address = textwrap::fill(
+            &self.address,
+            textwrap::Options::new(width)
+                .initial_indent(ADRESS_INDENT)
+                .subsequent_indent(ADRESS_INDENT),
+        );
         println!(
-            "{}{}{:>4} {}{}{}\n     {}{}{}",
+            "{}{}{:>4} {}{}{}\n{}{}{}",
             style::Bold,
             color::Fg(color::LightYellow),
             self.id,
@@ -33,21 +42,26 @@ impl Canteen {
             self.name,
             style::Reset,
             color::Fg(color::LightBlack),
-            self.address,
+            address,
             color::Fg(color::Reset),
         );
     }
 
     pub fn fetch(client: &Client, cmd: &CanteensCommand) -> Result<Vec<Self>> {
-        let (lat, long) = complete_lat_long(client, cmd)?;
-        let url = format!(
-            "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
-            ENDPOINT, lat, long, cmd.radius,
-        );
-        info!(
-            "Fetching canteens for lat: {}, long: {} with radius: {}",
-            lat, long, cmd.radius
-        );
+        let url = if cmd.all {
+            info!("Fetching all canteens");
+            format!("{}/canteens", ENDPOINT)
+        } else {
+            let (lat, long) = complete_lat_long(client, cmd)?;
+            info!(
+                "Fetching canteens for lat: {}, long: {} with radius: {}",
+                lat, long, cmd.radius
+            );
+            format!(
+                "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
+                ENDPOINT, lat, long, cmd.radius,
+            )
+        };
         PaginatedList::from(client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
     }
 }
@@ -57,12 +71,8 @@ where
     T: DeserializeOwned,
 {
     client: &'client Client,
-    url: Url,
-    // Key/Value pairs from the original url
-    original_query: Vec<(String, String)>,
-    page: usize,
+    next_page: Option<String>,
     ttl: Duration,
-    is_done: bool,
     __item: PhantomData<T>,
 }
 
@@ -70,18 +80,11 @@ impl<'client, T> PaginatedList<'client, T>
 where
     T: DeserializeOwned,
 {
-    pub fn from<U: IntoUrl>(client: &'client Client, url: U, ttl: Duration) -> Result<Self> {
-        // Parse the url and store the query seperately.
-        let url = url.into_url().map_err(Error::InvalidUrl)?;
-        let original_query = url.query_pairs().into_owned().collect();
-        // Page count is 1-based
+    pub fn from<S: AsRef<str>>(client: &'client Client, url: S, ttl: Duration) -> Result<Self> {
         Ok(PaginatedList {
             client,
-            original_query,
             ttl,
-            is_done: false,
-            url,
-            page: 1,
+            next_page: Some(url.as_ref().into()),
             __item: PhantomData,
         })
     }
@@ -108,35 +111,29 @@ where
     type Item = Result<Vec<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Do not send requests after the first error
-        if self.is_done {
-            return None;
-        }
-        // Drop the query and replace it with the original + the page number
-        self.url
-            .query_pairs_mut()
-            .clear()
-            .extend_pairs(self.original_query.iter())
-            .append_pair("page", &self.page.to_string());
-        info!("Requesting page {}: {}", self.page, self.url);
-        let val: Result<Vec<T>> = cache::get(self.client, &self.url, self.ttl, |text, headers| {
-            eprintln!("{:?}", headers);
-
-            serde_json::from_str(&text)
-                .map_err(|why| Error::Deserializing(why, "fetching canteen list"))
+        // This will yield until no next_page is available
+        let curr_page = self.next_page.take()?;
+        let res = cache::get(self.client, &curr_page, self.ttl, |text, headers| {
+            let val = serde_json::from_str::<Vec<_>>(&text)
+                .map_err(|why| Error::Deserializing(why, "fetching json in pagination iterator"))?;
+            Ok((val, headers.this_page, headers.next_page, headers.last_page))
         });
-        match val {
-            Ok(value) => {
-                self.page += 1;
-                // OpenMensa returns empty lists for large pages
-                if value.is_empty() {
-                    self.is_done = true;
+        match res {
+            Ok((val, this_page, next_page, last_page)) => {
+                // Only update next_page, if we're not on the last page!
+                // This should be safe for all cases
+                if this_page.unwrap_or_default() < last_page.unwrap_or_default() {
+                    // OpenMensa returns empty lists for large pages
+                    // this is just to keep me sane
+                    if !val.is_empty() {
+                        self.next_page = next_page;
+                    }
                 }
-                Some(Ok(value))
+                Some(Ok(val))
             }
             Err(why) => {
-                // Don't continue after an error occurred
-                self.is_done = true;
+                // Implicitly does not set the next_page url, so
+                // this iterator is done now
                 Some(Err(why))
             }
         }

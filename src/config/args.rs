@@ -26,6 +26,10 @@ pub struct Args {
                 default_value = "today")]
     pub date: NaiveDate,
 
+    /// Clear the cache before doing anything.
+    #[structopt(long)]
+    pub clear_cache: bool,
+
     /// Specify which price tags should be displayed
     #[structopt(long, short, env = "MENSA_PRICES", possible_values = &PriceTags::variants())]
     pub price: Option<Vec<PriceTags>>,
@@ -101,6 +105,9 @@ pub struct CanteensCommand {
     /// Maximum distance of potential canteens from your position in km.
     #[structopt(long, short, default_value = "10")]
     pub radius: f32,
+    /// Ignore other arguments. List all canteens.
+    #[structopt(long, short)]
+    pub all: bool,
 }
 
 fn parse_human_date(inp: &str) -> Result<NaiveDate> {

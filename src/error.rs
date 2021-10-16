@@ -13,6 +13,10 @@ pub enum Error {
     Serializing(#[source] serde_json::Error, &'static str),
     #[error("deserialization failed while {_1}: {_0}")]
     Deserializing(#[source] serde_json::Error, &'static str),
+    #[error("cache error while {_1}: {_0}")]
+    Cache(#[source] cacache::Error, &'static str),
+    #[error("io error while {_1}: {_0}")]
+    Io(#[source] std::io::Error, &'static str),
     #[error("could not parse date")]
     InvalidDateInArgs,
     #[error("no default canteen id is defined and `--id` was not given")]
@@ -25,18 +29,10 @@ pub enum Error {
     UnableToGetTerminalSize(#[source] std::io::Error),
     #[error("failed parsing regexes specified in the configuration: {_0}")]
     ParsingFilterRegex(#[source] regex::Error),
-    #[error("while writing to local cache: {_0}")]
-    WritingToCache(#[source] cacache::Error),
-    #[error("while performing I/O on cache: {_0}")]
-    WritingCache(#[source] std::io::Error),
-    #[error("while reading metadata from local cache: {_0}")]
-    ReadingCacheMetadata(#[source] cacache::Error),
-    #[error("tried to parse invalid url. This is probably a bug! {_0}")]
-    InvalidUrl(#[source] reqwest::Error),
     #[error("Url {_0:?} returned status {_1}")]
     NonSuccessStatusCode(String, reqwest::StatusCode),
-    #[error("while reading local cache: {_0}")]
-    ReadingCache(#[source] cacache::Error),
+    #[error("read invalid utf8 bytes")]
+    DecodingUtf8(#[source] std::string::FromUtf8Error),
 }
 
 pub trait ResultExt<T> {
@@ -53,7 +49,8 @@ where
         match self {
             Ok(inner) => Some(inner),
             Err(why) => {
-                error!("{}", why.into());
+                let why = why.into();
+                error!("{}", why);
                 None
             }
         }
@@ -63,7 +60,8 @@ where
         match self {
             Ok(inner) => inner,
             Err(why) => {
-                error!("{}", why.into());
+                let why = why.into();
+                error!("{}", why);
                 panic!();
             }
         }
@@ -73,7 +71,8 @@ where
         match self {
             Ok(inner) => Some(inner),
             Err(why) => {
-                warn!("{}", why.into());
+                let why = why.into();
+                warn!("{}", why);
                 None
             }
         }
