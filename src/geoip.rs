@@ -25,7 +25,7 @@ struct LatLong {
 ///
 /// This will use the cli arguments if given and
 /// fetch any missing values from api.geoip.rs.
-pub fn from(state: &CanteensState) -> Result<(f32, f32)> {
+pub fn fetch(state: &CanteensState) -> Result<(f32, f32)> {
     Ok(if state.cmd.lat.is_none() || state.cmd.long.is_none() {
         let guessed = fetch_geoip(&state.client)?;
         (

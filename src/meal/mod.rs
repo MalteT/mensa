@@ -1,4 +1,6 @@
+use chrono::Duration;
 use core::fmt;
+use lazy_static::lazy_static;
 use serde::Deserialize;
 use termion::{color, style};
 use unicode_width::UnicodeWidthStr;
@@ -6,9 +8,10 @@ use unicode_width::UnicodeWidthStr;
 use std::collections::HashSet;
 
 use crate::{
-    config::{args::MealsCommand, PriceTags},
-    error::pass_info,
-    get_sane_terminal_dimensions, State,
+    cache::fetch_json,
+    config::{args::MealsCommand, MealsState, PriceTags},
+    error::{pass_info, Result},
+    get_sane_terminal_dimensions, State, ENDPOINT,
 };
 
 pub mod tag;
@@ -21,6 +24,10 @@ const OTHER_NOTE_PRE: &str = "├╴";
 const OTHER_NOTE_CONTINUE_PRE: &str = "┊ ";
 const CATEGORY_PRE: &str = "├─╴";
 const PRICES_PRE: &str = "╰╴";
+
+lazy_static! {
+    static ref TTL_MEALS: Duration = Duration::hours(1);
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(from = "RawMeal")]
@@ -84,7 +91,8 @@ impl RawMeal {
 }
 
 impl Meal {
-    pub fn print_to_terminal(&self, state: &State<MealsCommand>, highlight: bool) {
+    /// Print this [`Meal`] to the terminal.
+    pub fn print(&self, state: &State<MealsCommand>, highlight: bool) {
         let (width, _height) = get_sane_terminal_dimensions();
         // Print meal name
         self.print_name_to_terminal(width, highlight);
@@ -92,6 +100,37 @@ impl Meal {
         self.print_category_and_primary_tags(highlight);
         self.print_descriptions(width, highlight);
         self.print_price_and_secondary_tags(state, highlight);
+    }
+
+    /// Fetch the meals.
+    ///
+    /// This will respect passed cli arguments and the configuration.
+    pub fn fetch(state: &MealsState) -> Result<Vec<Self>> {
+        let url = format!(
+            "{}/canteens/{}/days/{}/meals",
+            ENDPOINT,
+            state.canteen_id()?,
+            state.date()
+        );
+        fetch_json(&state.client, url, *TTL_MEALS)
+    }
+
+    /// Print the given meals.
+    ///
+    /// Thi will respect passed cli arguments and the configuration.
+    pub fn print_all(state: &MealsState, meals: &[Self]) {
+        // Load the filter which is used to select which meals to print.
+        let filter = state.get_filter();
+        // Load the favourites which will be used for marking meals.
+        let favs = state.get_favs_rule();
+        println!();
+        for meal in meals {
+            if filter.is_match(meal) {
+                let is_fav = favs.is_match(meal);
+                meal.print(state, is_fav);
+                println!();
+            }
+        }
     }
 
     fn print_name_to_terminal(&self, width: usize, highlight: bool) {

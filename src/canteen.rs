@@ -24,7 +24,7 @@ pub struct Canteen {
 }
 
 impl Canteen {
-    pub fn print_to_terminal(&self) {
+    pub fn print(&self) {
         use termion::{color, style};
         let (width, _) = get_sane_terminal_dimensions();
         let address = textwrap::fill(
@@ -52,7 +52,7 @@ impl Canteen {
             info!("Fetching all canteens");
             format!("{}/canteens", ENDPOINT)
         } else {
-            let (lat, long) = geoip::from(state)?;
+            let (lat, long) = geoip::fetch(state)?;
             info!(
                 "Fetching canteens for lat: {}, long: {} with radius: {}",
                 lat, long, state.cmd.radius
@@ -63,6 +63,13 @@ impl Canteen {
             )
         };
         PaginatedList::from(&state.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
+    }
+
+    pub fn print_all(canteens: &[Self]) {
+        println!();
+        for canteen in canteens {
+            canteen.print();
+        }
     }
 }
 

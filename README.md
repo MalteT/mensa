@@ -2,7 +2,8 @@
 
 # mensa
 
-CLI tool to query the menu of canteens contained in the [OpenMensa](https://openmensa.org) database.
+CLI tool to query the menu of canteens contained in the
+[OpenMensa](https://openmensa.org) database.
 
 ![example](https://user-images.githubusercontent.com/11077981/137278085-75ec877a-dba0-44bb-a8dc-6c802e24178c.png)
 

@@ -65,11 +65,11 @@ mod error;
 mod geoip;
 mod meal;
 
-use config::{args::parse_human_date, MealsState, State};
+use config::{args::parse_human_date, State};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
-use crate::{cache::fetch_json, canteen::Canteen, config::args::Command};
+use crate::{canteen::Canteen, config::args::Command};
 
 const ENDPOINT: &str = "https://openmensa.org/api/v2";
 const MIN_TERM_WIDTH: usize = 20;
@@ -78,7 +78,6 @@ lazy_static! {
     static ref DIR: ProjectDirs =
         ProjectDirs::from("rocks", "tammena", "mensa").expect("Could not detect home directory");
     static ref TTL_CANTEENS: Duration = Duration::days(1);
-    static ref TTL_MEALS: Duration = Duration::hours(1);
 }
 
 fn main() -> Result<()> {
@@ -103,29 +102,26 @@ fn real_main() -> Result<()> {
     match state.cmd.command {
         Some(Command::Meals(cmd)) => {
             let state = State::from(state.config, state.client, cmd);
-            let meals = fetch_meals(&state)?;
-            print_meals(&state, &meals);
+            let meals = Meal::fetch(&state)?;
+            Meal::print_all(&state, &meals);
         }
         Some(Command::Tomorrow(mut cmd)) => {
             // Works like the meals command. But we replace the date with tomorrow!
             cmd.date = parse_human_date("tomorrow").unwrap();
             let state = State::from(state.config, state.client, cmd);
-            let meals = fetch_meals(&state)?;
-            print_meals(&state, &meals);
+            let meals = Meal::fetch(&state)?;
+            Meal::print_all(&state, &meals);
         }
         Some(Command::Canteens(cmd)) => {
             let state = State::from(state.config, state.client, cmd);
             let canteens = Canteen::fetch(&state)?;
-            println!();
-            for canteen in canteens {
-                canteen.print_to_terminal();
-            }
+            Canteen::print_all(&canteens);
         }
         Some(Command::Tags) => print_tags(),
         None => {
             let state = State::from(state.config, state.client, Default::default());
-            let meals = fetch_meals(&state)?;
-            print_meals(&state, &meals);
+            let meals = Meal::fetch(&state)?;
+            Meal::print_all(&state, &meals);
         }
     }
     Ok(())
@@ -163,29 +159,6 @@ fn print_tags() {
             description,
             color::Fg(color::Reset),
         );
-    }
-}
-
-fn fetch_meals(state: &MealsState) -> Result<Vec<Meal>> {
-    let url = format!(
-        "{}/canteens/{}/days/{}/meals",
-        ENDPOINT,
-        state.canteen_id()?,
-        state.date()
-    );
-    fetch_json(&state.client, url, *TTL_MEALS)
-}
-
-fn print_meals(state: &MealsState, meals: &[Meal]) {
-    let filter = state.get_filter();
-    let favs = state.get_favs_rule();
-    println!();
-    for meal in meals {
-        if filter.is_match(meal) {
-            let is_fav = favs.is_match(meal);
-            meal.print_to_terminal(state, is_fav);
-            println!();
-        }
     }
 }
 
