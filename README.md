@@ -1,3 +1,5 @@
+[![tests](https://github.com/MalteT/mensa/actions/workflows/rust.yml/badge.svg)](https://github.com/MalteT/mensa/actions/workflows/rust.yml)
+
 # mensa
 
 CLI tool to query the menu of canteens contained in the [OpenMensa](https://openmensa.org) database.
