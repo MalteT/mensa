@@ -24,11 +24,18 @@
 //!
 //! * Ignores all errors
 //! ```
+//!
+//! - `fetch` functions are generalized over web requests and cache loading.
+//! - `get` functions only operate on requests.
+//! - `load`, `update` functions only operate on the cache.
 use cacache::Metadata;
 use chrono::{Duration, TimeZone};
 use lazy_static::lazy_static;
 use regex::Regex;
-use reqwest::{IntoUrl, StatusCode, blocking::{Client, Response}};
+use reqwest::{
+    blocking::{Client, Response},
+    IntoUrl, StatusCode,
+};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -60,7 +67,7 @@ pub struct Headers {
     pub last_page: Option<usize>,
 }
 
-/// Possible results from a cache lookup.
+/// Possible results from a cache load.
 #[derive(Debug, PartialEq)]
 enum CacheResult<T> {
     /// Missed, no entry exists.
@@ -71,20 +78,20 @@ enum CacheResult<T> {
     Hit(T),
 }
 
-/// Wrapper around [`get`] for responses that contain json.
-pub fn get_json<U, T>(client: &Client, url: U, local_ttl: Duration) -> Result<T>
+/// Wrapper around [`fetch`] for responses that contain json.
+pub fn fetch_json<U, T>(client: &Client, url: U, local_ttl: Duration) -> Result<T>
 where
     U: IntoUrl,
     T: DeserializeOwned,
 {
-    get(client, url, local_ttl, |text, _| {
+    fetch(client, url, local_ttl, |text, _| {
         // TODO: Check content header?
         serde_json::from_str(&text).map_err(|why| Error::Deserializing(why, "fetching json"))
     })
 }
 
-/// Generic method for fetching remote url-based resources.
-pub fn get<Map, U, T>(client: &Client, url: U, local_ttl: Duration, map: Map) -> Result<T>
+/// Generic method for fetching remote url-based resources that may be cached.
+pub fn fetch<Map, U, T>(client: &Client, url: U, local_ttl: Duration, map: Map) -> Result<T>
 where
     U: IntoUrl,
     Map: FnOnce(String, Headers) -> Result<T>,
@@ -95,7 +102,7 @@ where
     let url = url.as_ref();
     info!("Fetching {:?}", url);
     // Try getting the value from cache, if that fails, query the web
-    let (text, headers) = match try_read_cache(url, local_ttl) {
+    let (text, headers) = match try_load_cache(url, local_ttl) {
         Ok(CacheResult::Hit(text_and_headers)) => {
             info!("Hit cache on {:?}", url);
             text_and_headers
@@ -130,10 +137,10 @@ where
     map(text, headers)
 }
 
-/// Try reading the cache content.
+/// Try loading the cache content.
 ///
 /// This can fail due to errors, but also exits with a [`CacheResult`].
-fn try_read_cache(url: &str, local_ttl: Duration) -> Result<CacheResult<TextAndHeaders>> {
+fn try_load_cache(url: &str, local_ttl: Duration) -> Result<CacheResult<TextAndHeaders>> {
     // Try reading the cache's metadata
     match wrapper::read_cache_meta(url)? {
         Some(meta) => {
@@ -155,9 +162,9 @@ fn try_read_cache(url: &str, local_ttl: Duration) -> Result<CacheResult<TextAndH
     }
 }
 
-/// Request the resource and update the cache
+/// Request the resource and update the cache.
 ///
-/// This should only be called if the cache fetch already failed.
+/// This should only be called if the cache load already failed.
 ///
 /// If an optional `etag` is provided, add the If-None-Match header, and thus
 /// only get an update if the new ETAG differs from the given `etag`.
@@ -177,19 +184,23 @@ fn get_and_update_cache(
     let resp = wrapper::send_request(builder)?;
     let status = resp.status();
     info!("Request to {:?} returned {}", url, status);
-    if status == StatusCode::NOT_MODIFIED && meta.is_some() {
-        // If we received code 304 NOT MODIFIED (after adding the If-None-Match)
-        // our cache is actually fresh and it's timestamp should be updated
-        let headers = resp.headers().clone().into();
-        // Just verified, that meta can be unwrapped!
-        touch_and_read_cache(url, &meta.unwrap(), headers)
-    } else if status.is_success() {
-        // Request returned successfully, now update the cache with that
-        update_cache_from_response(resp)
-    } else {
-        // Some error occured, just error out
-        // TODO: Retrying would be an option
-        Err(Error::NonSuccessStatusCode(url.to_string(), resp.status()))
+    match meta {
+        Some(meta) if status == StatusCode::NOT_MODIFIED => {
+            // If we received code 304 NOT MODIFIED (after adding the If-None-Match)
+            // our cache is actually fresh and it's timestamp should be updated
+            let headers = resp.headers().clone().into();
+            // Just verified, that meta can be unwrapped!
+            touch_and_load_cache(url, &meta, headers)
+        }
+        _ if status.is_success() => {
+            // Request returned successfully, now update the cache with that
+            update_cache_from_response(resp)
+        }
+        _ => {
+            // Some error occured, just error out
+            // TODO: Retrying would be an option
+            Err(Error::NonSuccessStatusCode(url.to_string(), resp.status()))
+        }
     }
 }
 
@@ -204,8 +215,8 @@ fn update_cache_from_response(resp: Response) -> Result<TextAndHeaders> {
     Ok((text, headers))
 }
 
-/// Reset the cache's TTL, read and return it.
-fn touch_and_read_cache(url: &str, meta: &Metadata, headers: Headers) -> Result<TextAndHeaders> {
+/// Reset the cache's TTL, load and return it.
+fn touch_and_load_cache(url: &str, meta: &Metadata, headers: Headers) -> Result<TextAndHeaders> {
     let raw = wrapper::read_cache(meta)?;
     let (text, _) = to_text_and_headers(raw, &meta.metadata)?;
     // TODO: Update the timestamp in a smarter way..

@@ -113,7 +113,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         // This will yield until no next_page is available
         let curr_page = self.next_page.take()?;
-        let res = cache::get(self.client, &curr_page, self.ttl, |text, headers| {
+        let res = cache::fetch(self.client, &curr_page, self.ttl, |text, headers| {
             let val = serde_json::from_str::<Vec<_>>(&text)
                 .map_err(|why| Error::Deserializing(why, "fetching json in pagination iterator"))?;
             Ok((val, headers.this_page, headers.next_page, headers.last_page))

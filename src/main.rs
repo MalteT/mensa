@@ -19,7 +19,7 @@ use config::{args::CanteensCommand, CONFIG};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
-use crate::{cache::get_json, canteen::Canteen, config::args::Command};
+use crate::{cache::fetch_json, canteen::Canteen, config::args::Command};
 
 const ENDPOINT: &str = "https://openmensa.org/api/v2";
 const MIN_TERM_WIDTH: usize = 20;
@@ -125,7 +125,7 @@ fn fetch_meals(client: &Client) -> Result<Vec<Meal>> {
         CONFIG.canteen_id()?,
         CONFIG.date()
     );
-    get_json(client, url, *TTL_MEALS)
+    fetch_json(client, url, *TTL_MEALS)
 }
 
 fn print_meals(meals: &[Meal]) {
@@ -143,7 +143,7 @@ fn print_meals(meals: &[Meal]) {
 
 fn fetch_lat_long_for_ip(client: &Client) -> Result<LatLong> {
     let url = "https://api.geoip.rs";
-    get_json(client, url, *TTL_GEOIP)
+    fetch_json(client, url, *TTL_GEOIP)
 }
 
 #[derive(Debug, Clone, Deserialize)]

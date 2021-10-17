@@ -27,7 +27,7 @@ fn print_cache_list(header: &'static str) {
 
 #[test]
 fn test_cache_is_empty() {
-    let read = try_read_cache("test cache entry", Duration::max_value()).unwrap();
+    let read = try_load_cache("test cache entry", Duration::max_value()).unwrap();
     print_cache_list("Cache");
     assert_eq!(read, CacheResult::Miss);
 }
@@ -44,14 +44,14 @@ fn basic_caching() {
     });
 
     // Cache is empty
-    let val = try_read_cache(&server.url("/test"), Duration::max_value()).unwrap();
+    let val = try_load_cache(&server.url("/test"), Duration::max_value()).unwrap();
     print_cache_list("After first read");
     assert_eq!(val, CacheResult::Miss);
     // Populate the cache with the first request
-    let val = get(&*CLIENT, server.url("/test"), *TTL, |txt, _| Ok(txt)).unwrap();
+    let val = fetch(&*CLIENT, server.url("/test"), *TTL, |txt, _| Ok(txt)).unwrap();
     assert_eq!(val, "This page works!",);
     // The cache should now be hit
-    let val = try_read_cache(&server.url("/test"), Duration::max_value()).unwrap();
+    let val = try_load_cache(&server.url("/test"), Duration::max_value()).unwrap();
     print_cache_list("After second read");
     assert_eq!(
         val,
@@ -67,6 +67,6 @@ fn basic_caching() {
     );
     // Let's fake a stale entry
     thread::sleep(std::time::Duration::from_secs(1));
-    let val = try_read_cache(&server.url("/test"), Duration::zero()).unwrap();
+    let val = try_load_cache(&server.url("/test"), Duration::zero()).unwrap();
     assert!(matches!(val, CacheResult::Stale(_, _)));
 }

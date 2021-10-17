@@ -6,10 +6,7 @@ use lazy_static::lazy_static;
 use reqwest::blocking::{RequestBuilder, Response};
 use tracing::info;
 
-use std::{
-    io::Write,
-    path::Path,
-};
+use std::{io::Write, path::Path};
 
 use super::Headers;
 
