@@ -13,10 +13,52 @@ use super::PriceTags;
 
 #[derive(Debug, StructOpt)]
 pub struct Args {
-    /// Canteen ID for which to fetch meals.
-    #[structopt(long = "id", short = "i", env = "MENSA_ID")]
-    pub canteen_id: Option<usize>,
+    /// Clear the cache before doing anything.
+    #[structopt(long)]
+    pub clear_cache: bool,
 
+    /// Path to the configuration file.
+    #[structopt(long, short, env = "MENSA_CONFIG", name = "PATH")]
+    pub config: Option<PathBuf>,
+
+    #[structopt(subcommand)]
+    pub command: Option<Command>,
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, StructOpt)]
+pub enum Command {
+    /// List canteens close to you.
+    Canteens(CanteensCommand),
+    /// List all known tags.
+    Tags,
+    /// Default. Show meals.
+    Meals(MealsCommand),
+    /// Shortcut for `mensa meals -d tomorrow`
+    Tomorrow(MealsCommand),
+}
+
+#[derive(Debug, StructOpt)]
+pub struct CanteensCommand {
+    /// Latitude of your position. If omitted, geoip will be used to guess it.
+    #[structopt(long)]
+    pub lat: Option<f32>,
+
+    /// Longitude of your position. If omitted, geoip will be used to guess it.
+    #[structopt(long)]
+    pub long: Option<f32>,
+
+    /// Maximum distance of potential canteens from your position in km.
+    #[structopt(long, short, default_value = "10")]
+    pub radius: f32,
+
+    /// Ignore other arguments. List all canteens.
+    #[structopt(long, short)]
+    pub all: bool,
+}
+
+#[derive(Debug, StructOpt)]
+pub struct MealsCommand {
     /// Date for which to display information.
     ///
     /// Try values like `tomorrow`, `wed`, etc.
@@ -26,17 +68,13 @@ pub struct Args {
                 default_value = "today")]
     pub date: NaiveDate,
 
-    /// Clear the cache before doing anything.
-    #[structopt(long)]
-    pub clear_cache: bool,
+    /// Canteen ID for which to fetch meals.
+    #[structopt(long = "id", short = "i", env = "MENSA_ID")]
+    pub canteen_id: Option<usize>,
 
     /// Specify which price tags should be displayed
     #[structopt(long, short, env = "MENSA_PRICES", possible_values = &PriceTags::variants())]
     pub price: Option<Vec<PriceTags>>,
-
-    /// Path to the configuration file.
-    #[structopt(long, short, env = "MENSA_CONFIG", name = "PATH")]
-    pub config: Option<PathBuf>,
 
     #[structopt(long, env = "MENSA_OVERWRITE_FILTER", takes_value = false)]
     pub overwrite_filter: bool,
@@ -79,43 +117,38 @@ pub struct Args {
 
     #[structopt(long, env = "MENSA_FAVS_CATEGORY_SUB")]
     pub no_favs_cat: Vec<Regex>,
-
-    #[structopt(subcommand)]
-    pub command: Option<Command>,
 }
 
-#[derive(Debug, StructOpt)]
-pub enum Command {
-    /// List canteens close to you.
-    Canteens(CanteensCommand),
-    /// List all known tags.
-    Tags,
-    /// Default. Show meals.
-    Show,
-}
-
-#[derive(Debug, StructOpt)]
-pub struct CanteensCommand {
-    /// Latitude of your position. If omitted, geoip will be used to guess it.
-    #[structopt(long)]
-    pub lat: Option<f32>,
-    /// Longitude of your position. If omitted, geoip will be used to guess it.
-    #[structopt(long)]
-    pub long: Option<f32>,
-    /// Maximum distance of potential canteens from your position in km.
-    #[structopt(long, short, default_value = "10")]
-    pub radius: f32,
-    /// Ignore other arguments. List all canteens.
-    #[structopt(long, short)]
-    pub all: bool,
-}
-
-fn parse_human_date(inp: &str) -> Result<NaiveDate> {
+pub fn parse_human_date(inp: &str) -> Result<NaiveDate> {
     date_time_parser::DateParser::parse(inp).ok_or(Error::InvalidDateInArgs)
 }
 
 impl Default for Command {
     fn default() -> Self {
-        Self::Show
+        Self::Meals(Default::default())
+    }
+}
+
+impl Default for MealsCommand {
+    fn default() -> Self {
+        MealsCommand {
+            date: parse_human_date("today").unwrap(),
+            canteen_id: None,
+            price: None,
+            overwrite_filter: false,
+            filter_name: vec![],
+            no_filter_name: vec![],
+            filter_tag: vec![],
+            no_filter_tag: vec![],
+            filter_cat: vec![],
+            no_filter_cat: vec![],
+            overwrite_favs: false,
+            favs_name: vec![],
+            no_favs_name: vec![],
+            favs_tag: vec![],
+            no_favs_tag: vec![],
+            favs_cat: vec![],
+            no_favs_cat: vec![],
+        }
     }
 }

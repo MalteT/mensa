@@ -6,9 +6,9 @@ use unicode_width::UnicodeWidthStr;
 use std::collections::HashSet;
 
 use crate::{
-    config::{PriceTags, CONFIG},
+    config::{args::MealsCommand, PriceTags},
     error::pass_info,
-    get_sane_terminal_dimensions,
+    get_sane_terminal_dimensions, State,
 };
 
 pub mod tag;
@@ -84,14 +84,14 @@ impl RawMeal {
 }
 
 impl Meal {
-    pub fn print_to_terminal(&self, highlight: bool) {
+    pub fn print_to_terminal(&self, state: &State<MealsCommand>, highlight: bool) {
         let (width, _height) = get_sane_terminal_dimensions();
         // Print meal name
         self.print_name_to_terminal(width, highlight);
         // Get notes, i.e. allergenes, descriptions, tags
         self.print_category_and_primary_tags(highlight);
         self.print_descriptions(width, highlight);
-        self.print_price_and_secondary_tags(highlight);
+        self.print_price_and_secondary_tags(state, highlight);
     }
 
     fn print_name_to_terminal(&self, width: usize, highlight: bool) {
@@ -149,8 +149,8 @@ impl Meal {
         }
     }
 
-    fn print_price_and_secondary_tags(&self, highlight: bool) {
-        let prices = self.prices.to_terminal_string();
+    fn print_price_and_secondary_tags(&self, state: &State<MealsCommand>, highlight: bool) {
+        let prices = self.prices.to_terminal_string(state);
         let mut secondary: Vec<_> = self.tags.iter().filter(|tag| tag.is_secondary()).collect();
         secondary.sort_unstable();
         let secondary_str = secondary
@@ -179,10 +179,10 @@ impl Note {
 }
 
 impl Prices {
-    fn to_terminal_string(&self) -> String {
+    fn to_terminal_string(&self, state: &State<MealsCommand>) -> String {
         let price_style = format!("{}", color::Fg(color::LightGreen));
         let reset = format!("{}", color::Fg(color::Reset));
-        let price_tags = CONFIG.price_tags();
+        let price_tags = state.price_tags();
         let price_tags = if price_tags.is_empty() {
             // Print all of them
             vec![self.students, self.employees, self.others]

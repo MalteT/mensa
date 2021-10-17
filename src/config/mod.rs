@@ -1,20 +1,17 @@
 use lazy_static::lazy_static;
+use reqwest::blocking::Client;
 use serde::Deserialize;
 use structopt::{clap::arg_enum, StructOpt};
 
-use std::{
-    collections::HashSet,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashSet, fs, path::Path, time::Duration as StdDuration};
 
 use crate::{
-    error::{pass_info, Error, Result, ResultExt},
+    error::{Error, Result, ResultExt},
     DIR,
 };
 
 use self::{
-    args::Args,
+    args::{Args, CanteensCommand, MealsCommand},
     rule::{RegexRule, Rule, TagRule},
 };
 
@@ -22,13 +19,7 @@ pub mod args;
 pub mod rule;
 
 lazy_static! {
-    pub static ref CONFIG: Config = Config::assemble().log_panic();
-}
-
-#[derive(Debug)]
-pub struct Config {
-    pub args: Args,
-    pub file: Option<ConfigFile>,
+    static ref REQUEST_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,7 +45,7 @@ arg_enum! {
 }
 
 impl ConfigFile {
-    fn load_or_log<P: AsRef<Path>>(path: P) -> Option<Self> {
+    pub fn load_or_log<P: AsRef<Path>>(path: P) -> Option<Self> {
         let file = fs::read_to_string(path)
             .map_err(Error::ReadingConfig)
             .log_warn()?;
@@ -64,87 +55,97 @@ impl ConfigFile {
     }
 }
 
-impl Config {
+pub type CanteensState = State<CanteensCommand>;
+pub type MealsState = State<MealsCommand>;
+
+#[derive(Debug)]
+pub struct State<C> {
+    pub config: Option<ConfigFile>,
+    pub client: Client,
+    pub cmd: C,
+}
+
+impl State<Args> {
+    pub fn assemble() -> Result<Self> {
+        let default_config_path = || DIR.config_dir().join("config.toml");
+        let args = Args::from_args();
+        let path = args.config.clone().unwrap_or_else(default_config_path);
+        let config = ConfigFile::load_or_log(path);
+        let client = Client::builder()
+            .timeout(*REQUEST_TIMEOUT)
+            .build()
+            .map_err(Error::Reqwest)?;
+        Ok(Self {
+            config,
+            client,
+            cmd: args,
+        })
+    }
+}
+
+impl<C> State<C> {
+    pub fn from(config: Option<ConfigFile>, client: Client, cmd: C) -> Self {
+        Self {
+            config,
+            client,
+            cmd,
+        }
+    }
+}
+
+impl MealsState {
     pub fn canteen_id(&self) -> Result<usize> {
         // Get the default canteen id from the config file
-        let default = self
-            .file
-            .as_ref()
-            .map(|conf| conf.default_canteen_id)
-            .flatten();
-        self.args
+        let default = || self.config.as_ref()?.default_canteen_id;
+        self.cmd
             .canteen_id
-            .or(default)
+            .or_else(default)
             .ok_or(Error::CanteenIdMissing)
     }
 
     pub fn date(&self) -> &chrono::NaiveDate {
-        &self.args.date
+        &self.cmd.date
     }
 
     pub fn price_tags(&self) -> HashSet<PriceTags> {
-        let from_file = || self.file.as_ref().map(|conf| conf.price_tags.clone());
-        let from_args = self
-            .args
-            .price
-            .clone()
-            .map(|prices| prices.into_iter().collect());
-        from_args.or_else(from_file).unwrap_or_default()
+        let from_file = || Some(self.config.as_ref()?.price_tags.clone());
+        match self.cmd.price.clone() {
+            Some(prices) => prices.into_iter().collect(),
+            None => from_file().unwrap_or_default(),
+        }
     }
 
     pub fn get_filter(&self) -> Rule {
-        let conf_filter = self
-            .file
-            .as_ref()
-            .map(|file| &file.filter)
-            .cloned()
-            .unwrap_or_default();
+        let conf_filter = || Some(self.config.as_ref()?.filter.clone());
         let args_filter = Rule {
-            name: RegexRule::from_arg_parts(&self.args.filter_name, &self.args.no_filter_name),
+            name: RegexRule::from_arg_parts(&self.cmd.filter_name, &self.cmd.no_filter_name),
             tag: TagRule {
-                add: self.args.filter_tag.clone(),
-                sub: self.args.no_filter_tag.clone(),
+                add: self.cmd.filter_tag.clone(),
+                sub: self.cmd.no_filter_tag.clone(),
             },
-            category: RegexRule::from_arg_parts(&self.args.filter_cat, &self.args.no_filter_cat),
+            category: RegexRule::from_arg_parts(&self.cmd.filter_cat, &self.cmd.no_filter_cat),
         };
-        if self.args.overwrite_filter {
+        if self.cmd.overwrite_filter {
             args_filter
         } else {
-            conf_filter.joined(args_filter)
+            conf_filter().unwrap_or_default().joined(args_filter)
         }
     }
 
     pub fn get_favs_rule(&self) -> Rule {
-        let conf_favs = self
-            .file
-            .as_ref()
-            .map(|file| &file.favs)
-            .cloned()
-            .unwrap_or_default();
+        let conf_favs = || Some(self.config.as_ref()?.favs.clone());
         let args_favs = Rule {
-            name: RegexRule::from_arg_parts(&self.args.favs_name, &self.args.no_favs_name),
+            name: RegexRule::from_arg_parts(&self.cmd.favs_name, &self.cmd.no_favs_name),
             tag: TagRule {
-                add: self.args.favs_tag.clone(),
-                sub: self.args.no_favs_tag.clone(),
+                add: self.cmd.favs_tag.clone(),
+                sub: self.cmd.no_favs_tag.clone(),
             },
-            category: RegexRule::from_arg_parts(&self.args.favs_cat, &self.args.no_favs_cat),
+            category: RegexRule::from_arg_parts(&self.cmd.favs_cat, &self.cmd.no_favs_cat),
         };
-        if self.args.overwrite_favs {
+        if self.cmd.overwrite_favs {
             args_favs
         } else {
-            conf_favs.joined(args_favs)
+            conf_favs().unwrap_or_default().joined(args_favs)
         }
     }
-
-    fn assemble() -> Result<Self> {
-        let args = Args::from_args();
-        let path = args.config.clone().unwrap_or_else(default_config_path);
-        let file = ConfigFile::load_or_log(pass_info(path));
-        let config = pass_info(Config { file, args });
-        Ok(config)
-    }
-}
-
-fn default_config_path() -> PathBuf {
-    DIR.config_dir().join("config.toml")
 }

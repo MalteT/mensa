@@ -1,4 +1,5 @@
-//! CLI tool to query the menu of canteens contained in the [OpenMensa](https://openmensa.org) database.
+//! CLI tool to query the menu of canteens contained in the
+//! [OpenMensa](https://openmensa.org) database.
 //!
 //! ![example](https://user-images.githubusercontent.com/11077981/137278085-75ec877a-dba0-44bb-a8dc-6c802e24178c.png)
 //!
@@ -59,15 +60,16 @@ use strum::IntoEnumIterator;
 use tracing::error;
 use unicode_width::UnicodeWidthStr;
 
-use std::time::Duration as StdDuration;
-
 mod cache;
 mod canteen;
 mod config;
 mod error;
 mod meal;
 
-use config::{args::CanteensCommand, CONFIG};
+use config::{
+    args::{parse_human_date, CanteensCommand},
+    MealsState, State,
+};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
@@ -82,7 +84,6 @@ lazy_static! {
     static ref TTL_GEOIP: Duration = Duration::minutes(5);
     static ref TTL_CANTEENS: Duration = Duration::days(1);
     static ref TTL_MEALS: Duration = Duration::hours(1);
-    static ref REQUEST_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 }
 
 fn main() -> Result<()> {
@@ -97,27 +98,40 @@ fn main() -> Result<()> {
 fn real_main() -> Result<()> {
     // Initialize logger
     tracing_subscriber::fmt::init();
-    // Construct client used for all requests
-    let client = Client::builder().timeout(*REQUEST_TIMEOUT).build().unwrap();
+    // Construct client, load config and assemble cli args
+    let state = State::assemble()?;
     // Clear cache if requested
-    if CONFIG.args.clear_cache {
+    if state.cmd.clear_cache {
         cache::clear()?;
     }
-
-    match CONFIG.args.command {
-        Some(Command::Show) | None => {
-            let meals = fetch_meals(&client)?;
-            // TODO: More pizzazz
-            print_meals(&meals);
+    // Match over the user requested command
+    match state.cmd.command {
+        Some(Command::Meals(cmd)) => {
+            let state = State::from(state.config, state.client, cmd);
+            let meals = fetch_meals(&state)?;
+            print_meals(&state, &meals);
         }
-        Some(Command::Canteens(ref cmd)) => {
-            let canteens = Canteen::fetch(&client, cmd)?;
+        Some(Command::Tomorrow(mut cmd)) => {
+            // Works like the meals command. But we replace the date with tomorrow!
+            cmd.date = parse_human_date("tomorrow").unwrap();
+            let state = State::from(state.config, state.client, cmd);
+            let meals = fetch_meals(&state)?;
+            print_meals(&state, &meals);
+        }
+        Some(Command::Canteens(cmd)) => {
+            let state = State::from(state.config, state.client, cmd);
+            let canteens = Canteen::fetch(&state)?;
             println!();
             for canteen in canteens {
                 canteen.print_to_terminal();
             }
         }
         Some(Command::Tags) => print_tags(),
+        None => {
+            let state = State::from(state.config, state.client, Default::default());
+            let meals = fetch_meals(&state)?;
+            print_meals(&state, &meals);
+        }
     }
     Ok(())
 }
@@ -170,24 +184,24 @@ fn complete_lat_long(client: &Client, cmd: &CanteensCommand) -> Result<(f32, f32
     })
 }
 
-fn fetch_meals(client: &Client) -> Result<Vec<Meal>> {
+fn fetch_meals(state: &MealsState) -> Result<Vec<Meal>> {
     let url = format!(
         "{}/canteens/{}/days/{}/meals",
         ENDPOINT,
-        CONFIG.canteen_id()?,
-        CONFIG.date()
+        state.canteen_id()?,
+        state.date()
     );
-    fetch_json(client, url, *TTL_MEALS)
+    fetch_json(&state.client, url, *TTL_MEALS)
 }
 
-fn print_meals(meals: &[Meal]) {
-    let filter = CONFIG.get_filter();
-    let favs = CONFIG.get_favs_rule();
+fn print_meals(state: &MealsState, meals: &[Meal]) {
+    let filter = state.get_filter();
+    let favs = state.get_favs_rule();
     println!();
     for meal in meals {
         if filter.is_match(meal) {
             let is_fav = favs.is_match(meal);
-            meal.print_to_terminal(is_fav);
+            meal.print_to_terminal(state, is_fav);
             println!();
         }
     }

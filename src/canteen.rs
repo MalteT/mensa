@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use crate::{
     cache, complete_lat_long,
-    config::args::CanteensCommand,
+    config::CanteensState,
     error::{Error, Result},
     get_sane_terminal_dimensions, ENDPOINT, TTL_CANTEENS,
 };
@@ -47,22 +47,22 @@ impl Canteen {
         );
     }
 
-    pub fn fetch(client: &Client, cmd: &CanteensCommand) -> Result<Vec<Self>> {
-        let url = if cmd.all {
+    pub fn fetch(state: &CanteensState) -> Result<Vec<Self>> {
+        let url = if state.cmd.all {
             info!("Fetching all canteens");
             format!("{}/canteens", ENDPOINT)
         } else {
-            let (lat, long) = complete_lat_long(client, cmd)?;
+            let (lat, long) = complete_lat_long(&state.client, &state.cmd)?;
             info!(
                 "Fetching canteens for lat: {}, long: {} with radius: {}",
-                lat, long, cmd.radius
+                lat, long, state.cmd.radius
             );
             format!(
                 "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
-                ENDPOINT, lat, long, cmd.radius,
+                ENDPOINT, lat, long, state.cmd.radius,
             )
         };
-        PaginatedList::from(client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
+        PaginatedList::from(&state.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
     }
 }
 
