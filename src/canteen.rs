@@ -6,10 +6,10 @@ use tracing::info;
 use std::marker::PhantomData;
 
 use crate::{
-    cache, complete_lat_long,
+    cache,
     config::CanteensState,
     error::{Error, Result},
-    get_sane_terminal_dimensions, ENDPOINT, TTL_CANTEENS,
+    geoip, get_sane_terminal_dimensions, ENDPOINT, TTL_CANTEENS,
 };
 
 const ADRESS_INDENT: &str = "     ";
@@ -52,7 +52,7 @@ impl Canteen {
             info!("Fetching all canteens");
             format!("{}/canteens", ENDPOINT)
         } else {
-            let (lat, long) = complete_lat_long(&state.client, &state.cmd)?;
+            let (lat, long) = geoip::from(state)?;
             info!(
                 "Fetching canteens for lat: {}, long: {} with radius: {}",
                 lat, long, state.cmd.radius

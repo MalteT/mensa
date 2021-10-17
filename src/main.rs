@@ -54,8 +54,6 @@
 use chrono::Duration;
 use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
-use reqwest::blocking::Client;
-use serde::Deserialize;
 use strum::IntoEnumIterator;
 use tracing::error;
 use unicode_width::UnicodeWidthStr;
@@ -64,12 +62,10 @@ mod cache;
 mod canteen;
 mod config;
 mod error;
+mod geoip;
 mod meal;
 
-use config::{
-    args::{parse_human_date, CanteensCommand},
-    MealsState, State,
-};
+use config::{args::parse_human_date, MealsState, State};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
@@ -81,7 +77,6 @@ const MIN_TERM_WIDTH: usize = 20;
 lazy_static! {
     static ref DIR: ProjectDirs =
         ProjectDirs::from("rocks", "tammena", "mensa").expect("Could not detect home directory");
-    static ref TTL_GEOIP: Duration = Duration::minutes(5);
     static ref TTL_CANTEENS: Duration = Duration::days(1);
     static ref TTL_MEALS: Duration = Duration::hours(1);
 }
@@ -171,19 +166,6 @@ fn print_tags() {
     }
 }
 
-fn complete_lat_long(client: &Client, cmd: &CanteensCommand) -> Result<(f32, f32)> {
-    Ok(if cmd.lat.is_none() || cmd.long.is_none() {
-        let guessed = fetch_lat_long_for_ip(client)?;
-        (
-            cmd.lat.unwrap_or(guessed.latitude),
-            cmd.long.unwrap_or(guessed.longitude),
-        )
-    } else {
-        // Cannot panic, due to above if
-        (cmd.lat.unwrap(), cmd.long.unwrap())
-    })
-}
-
 fn fetch_meals(state: &MealsState) -> Result<Vec<Meal>> {
     let url = format!(
         "{}/canteens/{}/days/{}/meals",
@@ -205,17 +187,6 @@ fn print_meals(state: &MealsState, meals: &[Meal]) {
             println!();
         }
     }
-}
-
-fn fetch_lat_long_for_ip(client: &Client) -> Result<LatLong> {
-    let url = "https://api.geoip.rs";
-    fetch_json(client, url, *TTL_GEOIP)
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct LatLong {
-    latitude: f32,
-    longitude: f32,
 }
 
 fn get_sane_terminal_dimensions() -> (usize, usize) {
