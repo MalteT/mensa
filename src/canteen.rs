@@ -25,7 +25,6 @@ pub struct Canteen {
 
 impl Canteen {
     pub fn print(&self) {
-        use termion::{color, style};
         let (width, _) = get_sane_terminal_dimensions();
         let address = textwrap::fill(
             &self.address,
@@ -34,16 +33,10 @@ impl Canteen {
                 .subsequent_indent(ADRESS_INDENT),
         );
         println!(
-            "{}{}{:>4} {}{}{}\n{}{}{}",
-            style::Bold,
-            color::Fg(color::LightYellow),
-            self.id,
-            color::Fg(color::Reset),
-            self.name,
-            style::Reset,
-            color::Fg(color::LightBlack),
-            address,
-            color::Fg(color::Reset),
+            "{:>4} {}\n{}",
+            color!(self.id; bold, bright_yellow),
+            color!(self.name; bold),
+            color!(address; bright_black),
         );
     }
 

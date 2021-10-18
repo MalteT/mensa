@@ -58,6 +58,19 @@ use strum::IntoEnumIterator;
 use tracing::error;
 use unicode_width::UnicodeWidthStr;
 
+/// Colorizes the output.
+///
+/// This will colorize for Stdout based on heuristics and colors
+/// from the [`owo_colors`] library.
+macro_rules! color {
+    ($what:expr; $($fn:ident),+) => {
+        {
+            use owo_colors::{OwoColorize, Stream};
+            $what.if_supports_color(Stream::Stdout, |txt| txt $(. $fn().to_string())+)
+        }
+    }
+}
+
 mod cache;
 mod canteen;
 mod config;
@@ -128,7 +141,6 @@ fn real_main() -> Result<()> {
 }
 
 fn print_tags() {
-    use termion::{color, style};
     println!();
     for tag in Tag::iter() {
         const EMOJI_WIDTH: usize = 4;
@@ -148,25 +160,19 @@ fn print_tags() {
                 .subsequent_indent(TEXT_INDENT),
         );
         println!(
-            "{}{}{}{} {}{}\n{}{}{}",
-            style::Bold,
-            color::Fg(color::LightYellow),
-            emoji_padded,
-            color::Fg(color::Reset),
-            tag,
-            style::Reset,
-            color::Fg(color::LightBlack),
-            description,
-            color::Fg(color::Reset),
+            "{} {}\n{}",
+            color!(emoji_padded; bright_yellow, bold),
+            color!(tag; bold),
+            color!(description; bright_black),
         );
     }
 }
 
 fn get_sane_terminal_dimensions() -> (usize, usize) {
-    termion::terminal_size()
-        .map(|(w, h)| (w as usize, h as usize))
+    terminal_size::terminal_size()
+        .map(|(w, h)| (w.0 as usize, h.0 as usize))
         .map(|(w, h)| (w.max(MIN_TERM_WIDTH), h))
-        .map_err(Error::UnableToGetTerminalSize)
+        .ok_or(Error::UnableToGetTerminalSize)
         .log_warn()
         .unwrap_or((80, 80))
 }

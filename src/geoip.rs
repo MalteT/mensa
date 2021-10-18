@@ -21,7 +21,7 @@ struct LatLong {
     longitude: f32,
 }
 
-/// Derive Latitude and Longitude from the [`State`].
+/// Derive Latitude and Longitude from the [`CanteensState`].
 ///
 /// This will use the cli arguments if given and
 /// fetch any missing values from api.geoip.rs.

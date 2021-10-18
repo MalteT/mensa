@@ -26,7 +26,7 @@ pub enum Error {
     #[error("could not deserialize configuration file: {_0}")]
     DeserializingConfig(#[source] toml::de::Error),
     #[error("failed to read terminal size for standard output")]
-    UnableToGetTerminalSize(#[source] std::io::Error),
+    UnableToGetTerminalSize,
     #[error("failed parsing regexes specified in the configuration: {_0}")]
     ParsingFilterRegex(#[source] regex::Error),
     #[error("Url {_0:?} returned status {_1}")]

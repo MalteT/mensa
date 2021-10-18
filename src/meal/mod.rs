@@ -1,8 +1,9 @@
 use chrono::Duration;
 use core::fmt;
+use itertools::Itertools;
 use lazy_static::lazy_static;
+use owo_colors::{OwoColorize, Stream};
 use serde::Deserialize;
-use termion::{color, style};
 use unicode_width::UnicodeWidthStr;
 
 use std::collections::HashSet;
@@ -139,19 +140,16 @@ impl Meal {
         // There will always be a first part of the splitted string
         let first_name_part = name_parts.next().unwrap();
         println!(
-            "{}{}{}{}",
+            "{}{}",
             hl_if(highlight, NAME_PRE),
-            style::Bold,
-            hl_if(highlight, first_name_part),
-            style::Reset
+            hl_if(highlight, first_name_part).if_supports_color(Stream::Stdout, |name| name.bold()),
         );
         for name_part in name_parts {
+            let name_part = hl_if(highlight, name_part);
             println!(
-                "{}{}{}{}",
+                "{}{}",
                 hl_if(highlight, NAME_CONTINUE_PRE),
-                style::Bold,
-                hl_if(highlight, name_part),
-                style::Reset
+                color!(name_part; bold),
             );
         }
     }
@@ -161,13 +159,12 @@ impl Meal {
             .tags
             .iter()
             .filter(|tag| tag.is_primary())
-            .fold(String::from(" "), |s, e| s + &format!("{} ", e.as_emoji()));
+            .map(|tag| tag.as_emoji())
+            .join(" ");
         println!(
-            "{}{}{}{}{}",
+            "{}{} {}",
             hl_if(highlight, CATEGORY_PRE),
-            color::Fg(color::LightBlue),
-            self.category,
-            color::Fg(color::Reset),
+            color!(self.category; bright_blue),
             tag_str
         );
     }
@@ -192,16 +189,12 @@ impl Meal {
         let prices = self.prices.to_terminal_string(state);
         let mut secondary: Vec<_> = self.tags.iter().filter(|tag| tag.is_secondary()).collect();
         secondary.sort_unstable();
-        let secondary_str = secondary
-            .iter()
-            .fold(String::new(), |s, a| s + &format!("{} ", a.as_emoji()));
+        let secondary_str = secondary.iter().map(|tag| tag.as_emoji()).join(" ");
         println!(
-            "{}{}  {}{}{}",
+            "{}{}  {}",
             hl_if(highlight, PRICES_PRE),
             prices,
-            color::Fg(color::LightBlack),
-            secondary_str,
-            color::Fg(color::Reset),
+            color!(secondary_str; bright_black),
         );
     }
 }
@@ -219,8 +212,6 @@ impl Note {
 
 impl Prices {
     fn to_terminal_string(&self, state: &State<MealsCommand>) -> String {
-        let price_style = format!("{}", color::Fg(color::LightGreen));
-        let reset = format!("{}", color::Fg(color::Reset));
         let price_tags = state.price_tags();
         let price_tags = if price_tags.is_empty() {
             // Print all of them
@@ -240,21 +231,21 @@ impl Prices {
         };
         let price_tags: Vec<_> = price_tags
             .into_iter()
-            .map(|tag| format!("{}{:.2}€{}", &price_style, tag, &reset))
+            .map(|tag| format!("{:.2}€", tag))
+            .map(|tag| color!(tag; bright_green).to_string())
             .collect();
         match price_tags.len() {
             0 => String::new(),
             _ => {
                 let slash = format!(
-                    " {}/{} ",
-                    color::Fg(color::LightBlack),
-                    color::Fg(color::Reset)
+                    " {} ",
+                    "/".if_supports_color(Stream::Stdout, |txt| txt.bright_black()),
                 );
                 format!(
-                    "{0}({2} {1} {0}){2}",
-                    color::Fg(color::LightBlack),
+                    "{} {} {}",
+                    "(".if_supports_color(Stream::Stdout, |txt| txt.bright_black()),
                     price_tags.join(&slash),
-                    color::Fg(color::Reset)
+                    ")".if_supports_color(Stream::Stdout, |txt| txt.bright_black()),
                 )
             }
         }
@@ -266,12 +257,7 @@ where
     S: fmt::Display,
 {
     if highlight {
-        format!(
-            "{}{}{}",
-            color::Fg(color::LightYellow),
-            text,
-            color::Fg(color::Reset)
-        )
+        format!("{}", color!(text; bright_yellow),)
     } else {
         format!("{}", text)
     }
