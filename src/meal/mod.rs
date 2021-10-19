@@ -146,8 +146,7 @@ impl Meal {
         println!(
             "{}{}",
             hl_if(state, highlight, pre),
-            hl_if(state, highlight, first_name_part)
-                .if_supports_color(Stream::Stdout, |name| name.bold()),
+            color!(state: hl_if(state, highlight, first_name_part); bold),
         );
         for name_part in name_parts {
             let name_part = hl_if(state, highlight, name_part);
@@ -161,22 +160,22 @@ impl Meal {
     }
 
     fn print_category_and_primary_tags(&self, state: &MealsState, highlight: bool) {
-        let tag_str = self
+        let mut tag_str = self
             .tags
             .iter()
             .filter(|tag| tag.is_primary())
-            .map(|tag| tag.as_id(state))
-            .join(" ");
-        let tag_str_colored = if state.args.plain {
-            color!(state: tag_str; bright_black)
-        } else {
-            tag_str
-        };
+            .map(|tag| tag.as_id(state));
+        let tag_str_colored = if_plain!(
+            state: color!(state: tag_str.join(" "); bright_black),
+            tag_str.join(", ")
+        );
         let pre = if_plain!(state: CATEGORY_PRE, CATEGORY_PRE_PLAIN);
+        let comma_if_plain = if_plain!(state: "", ",");
         println!(
-            "{}{} {}",
+            "{}{}{} {}",
             hl_if(state, highlight, pre),
             color!(state: self.category; bright_blue),
+            color!(state: comma_if_plain; bright_black),
             tag_str_colored
         );
     }
@@ -255,15 +254,12 @@ impl Prices {
         match price_tags.len() {
             0 => String::new(),
             _ => {
-                let slash = format!(
-                    " {} ",
-                    "/".if_supports_color(Stream::Stdout, |txt| txt.bright_black()),
-                );
+                let slash = color!(state: " / "; bright_black);
                 format!(
                     "{} {} {}",
-                    "(".if_supports_color(Stream::Stdout, |txt| txt.bright_black()),
+                    color!(state: "("; bright_black),
                     price_tags.join(&slash),
-                    ")".if_supports_color(Stream::Stdout, |txt| txt.bright_black()),
+                    color!(state: ")"; bright_black),
                 )
             }
         }
