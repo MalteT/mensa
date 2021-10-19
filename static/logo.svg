@@ -26,20 +26,24 @@
      width="50mm"
      inkscape:showpageshadow="false"
      inkscape:lockguides="false"
-     inkscape:zoom="3.7054789"
-     inkscape:cx="81.366001"
-     inkscape:cy="40.750468"
+     inkscape:zoom="4.9057094"
+     inkscape:cx="73.28196"
+     inkscape:cy="36.080409"
      inkscape:window-width="1920"
      inkscape:window-height="1040"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer2"
      height="20mm"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
-     fit-margin-bottom="0">
+     fit-margin-bottom="0"
+     inkscape:snap-others="true"
+     inkscape:object-nodes="false"
+     inkscape:snap-nodes="true"
+     inkscape:snap-global="true">
     <sodipodi:guide
        position="0,18.91597"
        orientation="0,188.97638"
@@ -67,16 +71,20 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="background"
-     sodipodi:insensitive="true">
+     style="display:inline">
+    <path
+       id="rect54231"
+       style="fill:#ebdbb2;fill-opacity:1;stroke-width:0.202312"
+       d="M 4.8984375,0.4296875 C 3.1227869,0.54832252 1.7620021,2.2995955 1.9707031,4.0464844 1.9947558,7.9389237 1.9232311,11.836436 2.0052786,15.725815 2.1968454,17.437748 3.9118935,18.694905 5.5992187,18.5 18.775644,18.489543 31.953163,18.520887 45.128906,18.484375 46.893213,18.349358 48.235949,16.60697 48.029297,14.869531 48.005244,10.977092 48.076769,7.0795799 47.994721,3.1902006 47.803155,1.4782676 46.088106,0.22111077 44.400781,0.41601563 31.233454,0.42516286 18.065196,0.39774272 4.8984375,0.4296875 Z" />
     <rect
-       style="fill:#282828;fill-opacity:1;stroke-width:0.224791"
+       style="fill:#282828;fill-opacity:1;stroke-width:0.202312"
        id="rect29679"
-       width="50"
-       height="18.91597"
-       x="1.3322676e-15"
-       y="-2.7020768e-08"
-       rx="3"
-       ry="3" />
+       width="45"
+       height="17.024372"
+       x="2.5"
+       y="0.94579846"
+       rx="2.7"
+       ry="2.7" />
   </g>
   <g
      inkscape:groupmode="layer"
@@ -85,52 +93,53 @@
      sodipodi:insensitive="true">
     <text
        xml:space="preserve"
-       style="font-weight:bold;font-size:15.875px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Bold';fill:#1d2021;fill-opacity:1;stroke-width:0.264583"
-       x="1.1967696"
-       y="14.170927"
+       style="font-weight:bold;font-size:14.2875px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Bold';fill:#1d2021;fill-opacity:1;stroke-width:0.238125"
+       x="3.6215694"
+       y="13.738232"
        id="text12257-9"><tspan
          sodipodi:role="line"
          id="tspan12255-4"
-         style="fill:#1d2021;fill-opacity:1;stroke-width:0.264583"
-         x="1.1967696"
-         y="14.170927">mensa</tspan></text>
+         style="fill:#1d2021;fill-opacity:1;stroke-width:0.238125"
+         x="3.6215694"
+         y="13.738232">mensa</tspan></text>
   </g>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
-     id="layer1">
+     id="layer1"
+     sodipodi:insensitive="true">
     <text
        xml:space="preserve"
-       style="font-size:5.29167px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font';stroke-width:0.264583"
-       x="6.9712048"
-       y="4.2051921"
+       style="font-size:4.7625px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font';stroke-width:0.238125"
+       x="8.7740841"
+       y="4.7698412"
        id="text3791"><tspan
          sodipodi:role="line"
          id="tspan3789"
-         style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Light';fill:#ebdbb2;fill-opacity:1;stroke-width:0.264583"
-         x="6.9712048"
-         y="4.2051921">open</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Light';fill:#ebdbb2;fill-opacity:1;stroke-width:0.238125"
+         x="8.7740841"
+         y="4.7698412">open</tspan></text>
     <text
        xml:space="preserve"
-       style="font-weight:bold;font-size:15.875px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Bold';stroke-width:0.264583"
-       x="0.75200266"
-       y="13.78494"
+       style="font-weight:bold;font-size:14.2875px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Bold';stroke-width:0.238125"
+       x="3.1768024"
+       y="13.391614"
        id="text12257"><tspan
          sodipodi:role="line"
          id="tspan12255"
-         style="fill:#fabd2f;fill-opacity:1;stroke-width:0.264583"
-         x="0.75200266"
-         y="13.78494">mensa</tspan></text>
+         style="fill:#fabd2f;fill-opacity:1;stroke-width:0.238125"
+         x="3.1768024"
+         y="13.391614">mensa</tspan></text>
     <text
        xml:space="preserve"
-       style="font-weight:300;font-size:5.29167px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Light';stroke-width:0.264583"
-       x="35.391129"
-       y="18.306831"
+       style="font-weight:300;font-size:4.7625px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Light';stroke-width:0.238125"
+       x="34.352016"
+       y="17.461317"
        id="text37769"><tspan
          sodipodi:role="line"
          id="tspan37767"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Bold';fill:#ebdbb2;fill-opacity:1;stroke-width:0.264583"
-         x="35.391129"
-         y="18.306831">CLI</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Bold';fill:#ebdbb2;fill-opacity:1;stroke-width:0.238125"
+         x="34.352016"
+         y="17.461317">CLI</tspan></text>
   </g>
 </svg>
