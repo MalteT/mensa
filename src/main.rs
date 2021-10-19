@@ -1,9 +1,15 @@
+//! <img src="https://raw.githubusercontent.com/MalteT/mensa/main/static/logo.svg?sanitize=true" alt="mensa CLI logo" width="400" align="right">
+//!
+//! [![tests](https://github.com/MalteT/mensa/actions/workflows/rust.yml/badge.svg)](https://github.com/MalteT/mensa/actions/workflows/rust.yml)
+//!
+//! # mensa
+//!
 //! CLI tool to query the menu of canteens contained in the
 //! [OpenMensa](https://openmensa.org) database.
 //!
 //! ![example](https://user-images.githubusercontent.com/11077981/137278085-75ec877a-dba0-44bb-a8dc-6c802e24178c.png)
 //!
-//! # Features
+//! ## Features
 //!
 //! - [X] Runs on Linux, macOS and Windows.
 //! - [X] Custom filters and favourites using CLI flags or the
@@ -15,15 +21,15 @@
 //! - [ ] List your favourite meals in canteens close to your location.
 //!
 //!
-//! # Installation
+//! ## Installation
 //!
-//! ## Cargo
+//! ### Cargo
 //!
 //! ```console
 //! $ cargo install --git https://github.com/MalteT/mensa
 //! ```
 //!
-//! ## Nix
+//! ### Nix
 //!
 //! This is a [Nix Flake](https://nixos.wiki/wiki/Flakes), add it
 //! to your configuration or just test the application with:
@@ -33,7 +39,7 @@
 //! ```
 //!
 //!
-//! # Usage
+//! ## Usage
 //!
 //! See `mensa --help`.
 //!
@@ -47,7 +53,7 @@
 //! - `mensa tomorrow` shortcut for `mensa meals -d tomorrow [...]`
 //!
 //!
-//! # Configuration
+//! ## Configuration
 //!
 //! See [config.toml](config.toml) for an example. Copy the file to:
 //! - `$XDG_CONFIG_DIR/mensa/config.toml` on **Linux**,

@@ -72,7 +72,7 @@ enum Note {
 }
 
 impl RawMeal {
-    /// Parse notes and return them split into [`Tags`] and descriptions.
+    /// Parse notes and return them split into [`Tag`]s and descriptions.
     fn parse_and_split_notes(&self) -> (HashSet<Tag>, HashSet<String>) {
         self.notes
             .iter()

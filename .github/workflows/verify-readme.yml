@@ -31,7 +31,7 @@ jobs:
           crate: cargo-readme
           version: latest
           use-tool-cache: true
-      - run: cargo readme --output README.md
+      - run: cargo readme --no-indent-headings --output README.md
       # This will verify that cargo readme did not do anything
       # If it did, the CI should fail, because the README is outdated
       - run: git diff --exit-code
