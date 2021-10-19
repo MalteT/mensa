@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use regex::Regex;
-use structopt::StructOpt;
+use serde::Deserialize;
+use structopt::{clap::arg_enum, StructOpt};
 
 use std::path::PathBuf;
 
@@ -27,6 +28,17 @@ pub struct Args {
     /// This does not prune non-ascii characters returned by the openmensa API.
     #[structopt(long, env = "MENSA_ASCII_ONLY", global = true, takes_value = false)]
     pub plain: bool,
+
+    /// When to use terminal colors.
+    #[structopt(
+                long,
+                global = true,
+                value_name = "WHEN",
+                default_value = "Automatic",
+                possible_values = &ColorWhen::variants(),
+                case_insensitive = true
+                )]
+    pub color: ColorWhen,
 
     #[structopt(subcommand)]
     pub command: Option<Command>,
@@ -124,6 +136,15 @@ pub struct MealsCommand {
 
     #[structopt(long, env = "MENSA_FAVS_CATEGORY_SUB")]
     pub no_favs_cat: Vec<Regex>,
+}
+
+arg_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+    pub enum ColorWhen {
+        Always,
+        Automatic,
+        Never,
+    }
 }
 
 pub fn parse_human_date(inp: &str) -> Result<NaiveDate> {

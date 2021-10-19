@@ -24,7 +24,7 @@ pub struct Canteen {
 }
 
 impl Canteen {
-    pub fn print(&self) {
+    pub fn print(&self, state: &CanteensState) {
         let (width, _) = get_sane_terminal_dimensions();
         let address = textwrap::fill(
             &self.address,
@@ -34,9 +34,9 @@ impl Canteen {
         );
         println!(
             "{} {}\n{}",
-            color!(format!("{:>4}", self.id); bold, bright_yellow),
-            color!(self.name; bold),
-            color!(address; bright_black),
+            color!(state: format!("{:>4}", self.id); bold, bright_yellow),
+            color!(state: self.name; bold),
+            color!(state: address; bright_black),
         );
     }
 
@@ -58,10 +58,10 @@ impl Canteen {
         PaginatedList::from(&state.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
     }
 
-    pub fn print_all(canteens: &[Self]) {
+    pub fn print_all(state: &CanteensState, canteens: &[Self]) {
         for canteen in canteens {
             println!();
-            canteen.print();
+            canteen.print(state);
         }
     }
 }

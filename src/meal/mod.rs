@@ -145,13 +145,18 @@ impl Meal {
         let pre = if_plain!(state: NAME_PRE, NAME_PRE_PLAIN);
         println!(
             "{}{}",
-            hl_if(highlight, pre),
-            hl_if(highlight, first_name_part).if_supports_color(Stream::Stdout, |name| name.bold()),
+            hl_if(state, highlight, pre),
+            hl_if(state, highlight, first_name_part)
+                .if_supports_color(Stream::Stdout, |name| name.bold()),
         );
         for name_part in name_parts {
-            let name_part = hl_if(highlight, name_part);
+            let name_part = hl_if(state, highlight, name_part);
             let pre = if_plain!(state: NAME_CONTINUE_PRE, NAME_CONTINUE_PRE_PLAIN);
-            println!("{}{}", hl_if(highlight, pre), color!(name_part; bold),);
+            println!(
+                "{}{}",
+                hl_if(state, highlight, pre),
+                color!(state: name_part; bold),
+            );
         }
     }
 
@@ -163,15 +168,15 @@ impl Meal {
             .map(|tag| tag.as_id(state))
             .join(" ");
         let tag_str_colored = if state.args.plain {
-            color!(tag_str; bright_black).to_string()
+            color!(state: tag_str; bright_black)
         } else {
             tag_str
         };
         let pre = if_plain!(state: CATEGORY_PRE, CATEGORY_PRE_PLAIN);
         println!(
             "{}{} {}",
-            hl_if(highlight, pre),
-            color!(self.category; bright_blue),
+            hl_if(state, highlight, pre),
+            color!(state: self.category; bright_blue),
             tag_str_colored
         );
     }
@@ -186,9 +191,13 @@ impl Meal {
         for note in &self.descs {
             let mut note_parts = textwrap::wrap(note, max_note_width).into_iter();
             // There will always be a first part in the splitted string
-            println!("{}{}", hl_if(highlight, pre), note_parts.next().unwrap());
+            println!(
+                "{}{}",
+                hl_if(state, highlight, pre),
+                note_parts.next().unwrap()
+            );
             for part in note_parts {
-                println!("{}{}", hl_if(highlight, pre_continue), part);
+                println!("{}{}", hl_if(state, highlight, pre_continue), part);
             }
         }
     }
@@ -201,9 +210,9 @@ impl Meal {
         let pre = if_plain!(state: PRICES_PRE, PRICES_PRE_PLAIN);
         println!(
             "{}{}  {}",
-            hl_if(highlight, pre),
+            hl_if(state, highlight, pre),
             prices,
-            color!(secondary_str; bright_black),
+            color!(state: secondary_str; bright_black),
         );
     }
 }
@@ -241,7 +250,7 @@ impl Prices {
         let price_tags: Vec<_> = price_tags
             .into_iter()
             .map(|tag| format!("{:.2}€", tag))
-            .map(|tag| color!(tag; bright_green).to_string())
+            .map(|tag| color!(state: tag; bright_green))
             .collect();
         match price_tags.len() {
             0 => String::new(),
@@ -261,12 +270,12 @@ impl Prices {
     }
 }
 
-fn hl_if<S>(highlight: bool, text: S) -> String
+fn hl_if<Cmd, S>(state: &State<Cmd>, highlight: bool, text: S) -> String
 where
     S: fmt::Display,
 {
     if highlight {
-        format!("{}", color!(text; bright_yellow),)
+        color!(state: text; bright_yellow)
     } else {
         format!("{}", text)
     }

@@ -64,12 +64,24 @@ use unicode_width::UnicodeWidthStr;
 /// This will colorize for Stdout based on heuristics and colors
 /// from the [`owo_colors`] library.
 macro_rules! color {
-    ($what:expr; $($fn:ident),+) => {
+    ($state:ident: $what:expr; $($fn:ident),+) => {
         {
             use owo_colors::{OwoColorize, Stream};
-            $what.if_supports_color(Stream::Stdout, |txt| txt $(. $fn().to_string())+)
+            use crate::config::args::ColorWhen;
+            match $state.args.color {
+                ColorWhen::Always => {
+                    $what $(. $fn())+ .to_string()
+                }
+                ColorWhen::Automatic => {
+                    $what.if_supports_color(Stream::Stdout,
+                                            |txt| txt $(. $fn().to_string())+).to_string()
+                }
+                ColorWhen::Never => {
+                    $what.to_string()
+                }
+            }
         }
-    }
+    };
 }
 
 macro_rules! if_plain {
@@ -144,7 +156,7 @@ fn real_main() -> Result<()> {
         Some(Command::Canteens(cmd)) => {
             let state = State::from(state, cmd);
             let canteens = Canteen::fetch(&state)?;
-            Canteen::print_all(&canteens);
+            Canteen::print_all(&state, &canteens);
         }
         Some(Command::Tags) => print_tags(&state),
         None => {
@@ -182,9 +194,9 @@ fn print_tags<Cmd>(state: &State<Cmd>) {
         );
         println!(
             "{} {}\n{}",
-            color!(emoji; bright_yellow, bold),
-            color!(tag; bold),
-            color!(description; bright_black),
+            color!(state: emoji; bright_yellow, bold),
+            color!(state: tag; bold),
+            color!(state: description; bright_black),
         );
     }
 }
