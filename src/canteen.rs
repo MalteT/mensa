@@ -33,8 +33,8 @@ impl Canteen {
                 .subsequent_indent(ADRESS_INDENT),
         );
         println!(
-            "{:>4} {}\n{}",
-            color!(self.id; bold, bright_yellow),
+            "{} {}\n{}",
+            color!(format!("{:>4}", self.id); bold, bright_yellow),
             color!(self.name; bold),
             color!(address; bright_black),
         );
@@ -59,8 +59,8 @@ impl Canteen {
     }
 
     pub fn print_all(canteens: &[Self]) {
-        println!();
         for canteen in canteens {
+            println!();
             canteen.print();
         }
     }

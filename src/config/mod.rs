@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use structopt::{clap::arg_enum, StructOpt};
+use structopt::clap::arg_enum;
 
 use std::{collections::HashSet, fs, path::Path, time::Duration as StdDuration};
 
@@ -55,20 +55,20 @@ impl ConfigFile {
     }
 }
 
-pub type CanteensState = State<CanteensCommand>;
-pub type MealsState = State<MealsCommand>;
+pub type CanteensState<'s> = State<'s, CanteensCommand>;
+pub type MealsState<'s> = State<'s, MealsCommand>;
 
 #[derive(Debug)]
-pub struct State<C> {
+pub struct State<'s, Cmd> {
     pub config: Option<ConfigFile>,
     pub client: Client,
-    pub cmd: C,
+    pub args: &'s Args,
+    pub cmd: &'s Cmd,
 }
 
-impl State<Args> {
-    pub fn assemble() -> Result<Self> {
+impl<'s> State<'s, ()> {
+    pub fn assemble(args: &'s Args) -> Result<Self> {
         let default_config_path = || DIR.config_dir().join("config.toml");
-        let args = Args::from_args();
         let path = args.config.clone().unwrap_or_else(default_config_path);
         let config = ConfigFile::load_or_log(path);
         let client = Client::builder()
@@ -78,22 +78,24 @@ impl State<Args> {
         Ok(Self {
             config,
             client,
-            cmd: args,
+            args,
+            cmd: &(),
         })
     }
 }
 
-impl<C> State<C> {
-    pub fn from(config: Option<ConfigFile>, client: Client, cmd: C) -> Self {
+impl<'s, Cmd> State<'s, Cmd> {
+    pub fn from<OldCmd>(old: State<'s, OldCmd>, cmd: &'s Cmd) -> Self {
         Self {
-            config,
-            client,
+            config: old.config,
+            client: old.client,
+            args: old.args,
             cmd,
         }
     }
 }
 
-impl MealsState {
+impl MealsState<'_> {
     pub fn canteen_id(&self) -> Result<usize> {
         // Get the default canteen id from the config file
         let default = || self.config.as_ref()?.default_canteen_id;

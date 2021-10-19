@@ -4,6 +4,8 @@ use regex::RegexSet;
 use serde::Deserialize;
 use strum::{Display, EnumIter};
 
+use crate::config::State;
+
 lazy_static! {
     /// These must have the same order as the variants in the [`Tag`] enum.
     static ref TAG_RE: RegexSet = RegexSet::new(&[
@@ -136,14 +138,17 @@ impl Tag {
         }
     }
 
-    pub fn as_emoji(&self) -> String {
+    /// This formats an identifier for this tag.
+    ///
+    /// Will respect any settings given.
+    pub fn as_id<Cmd>(&self, state: &State<Cmd>) -> String {
         match self {
-            Self::Vegan => "🌱".into(),
-            Self::Vegetarian => "🧀".into(),
-            Self::Pig => "🐖".into(),
-            Self::Fish => "🐟".into(),
-            Self::Cow => "🐄".into(),
-            Self::Poultry => "🐓".into(),
+            Self::Vegan => if_plain!(state: "🌱".into(), "Vegan".into()),
+            Self::Vegetarian => if_plain!(state:"🧀".into(), "Vegetarian".into()),
+            Self::Pig => if_plain!(state:"🐖".into(), "Pig".into()),
+            Self::Fish => if_plain!(state:"🐟".into(), "Fish".into()),
+            Self::Cow => if_plain!(state:"🐄".into(), "Cow".into()),
+            Self::Poultry => if_plain!(state:"🐓".into(), "Poultry".into()),
             _ => {
                 // If no special emoji is available, just use the id
                 let number: u8 = (*self).into();

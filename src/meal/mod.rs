@@ -19,12 +19,18 @@ pub mod tag;
 
 use self::tag::Tag;
 
-const NAME_PRE: &str = "╭───╴";
-const NAME_CONTINUE_PRE: &str = "┊    ";
-const OTHER_NOTE_PRE: &str = "├╴";
-const OTHER_NOTE_CONTINUE_PRE: &str = "┊ ";
-const CATEGORY_PRE: &str = "├─╴";
-const PRICES_PRE: &str = "╰╴";
+const NAME_PRE: &str = " ╭───╴";
+const NAME_PRE_PLAIN: &str = " - ";
+const NAME_CONTINUE_PRE: &str = " ┊    ";
+const NAME_CONTINUE_PRE_PLAIN: &str = "     ";
+const OTHER_NOTE_PRE: &str = " ├╴";
+const OTHER_NOTE_PRE_PLAIN: &str = "   ";
+const OTHER_NOTE_CONTINUE_PRE: &str = " ┊ ";
+const OTHER_NOTE_CONTINUE_PRE_PLAIN: &str = "     ";
+const CATEGORY_PRE: &str = " ├─╴";
+const CATEGORY_PRE_PLAIN: &str = "   ";
+const PRICES_PRE: &str = " ╰╴";
+const PRICES_PRE_PLAIN: &str = "   ";
 
 lazy_static! {
     static ref TTL_MEALS: Duration = Duration::hours(1);
@@ -65,29 +71,27 @@ enum Note {
     Desc(String),
 }
 
-#[derive(Debug, Clone, Default)]
-struct SplittedNotes {
-    tags: HashSet<Tag>,
-    descs: HashSet<String>,
-}
-
 impl RawMeal {
-    fn parse_and_split_notes(&self) -> SplittedNotes {
+    /// Parse notes and return them split into [`Tags`] and descriptions.
+    fn parse_and_split_notes(&self) -> (HashSet<Tag>, HashSet<String>) {
         self.notes
             .iter()
             .cloned()
             .flat_map(|raw| Note::parse_str(&raw))
-            .fold(SplittedNotes::default(), |mut sn, note| {
-                match note {
-                    Note::Tag(tag) => {
-                        sn.tags.insert(tag);
+            .fold(
+                (HashSet::new(), HashSet::new()),
+                |(mut tags, mut descs), note| {
+                    match note {
+                        Note::Tag(tag) => {
+                            tags.insert(tag);
+                        }
+                        Note::Desc(other) => {
+                            descs.insert(other);
+                        }
                     }
-                    Note::Desc(other) => {
-                        sn.descs.insert(other);
-                    }
-                }
-                sn
-            })
+                    (tags, descs)
+                },
+            )
     }
 }
 
@@ -96,10 +100,10 @@ impl Meal {
     pub fn print(&self, state: &State<MealsCommand>, highlight: bool) {
         let (width, _height) = get_sane_terminal_dimensions();
         // Print meal name
-        self.print_name_to_terminal(width, highlight);
+        self.print_name_to_terminal(state, width, highlight);
         // Get notes, i.e. allergenes, descriptions, tags
-        self.print_category_and_primary_tags(highlight);
-        self.print_descriptions(width, highlight);
+        self.print_category_and_primary_tags(state, highlight);
+        self.print_descriptions(state, width, highlight);
         self.print_price_and_secondary_tags(state, highlight);
     }
 
@@ -124,63 +128,67 @@ impl Meal {
         let filter = state.get_filter();
         // Load the favourites which will be used for marking meals.
         let favs = state.get_favs_rule();
-        println!();
         for meal in meals {
             if filter.is_match(meal) {
                 let is_fav = favs.is_match(meal);
-                meal.print(state, is_fav);
                 println!();
+                meal.print(state, is_fav);
             }
         }
     }
 
-    fn print_name_to_terminal(&self, width: usize, highlight: bool) {
+    fn print_name_to_terminal(&self, state: &MealsState, width: usize, highlight: bool) {
         let max_name_width = width - NAME_PRE.width();
         let mut name_parts = textwrap::wrap(&self.name, max_name_width).into_iter();
         // There will always be a first part of the splitted string
         let first_name_part = name_parts.next().unwrap();
+        let pre = if_plain!(state: NAME_PRE, NAME_PRE_PLAIN);
         println!(
             "{}{}",
-            hl_if(highlight, NAME_PRE),
+            hl_if(highlight, pre),
             hl_if(highlight, first_name_part).if_supports_color(Stream::Stdout, |name| name.bold()),
         );
         for name_part in name_parts {
             let name_part = hl_if(highlight, name_part);
-            println!(
-                "{}{}",
-                hl_if(highlight, NAME_CONTINUE_PRE),
-                color!(name_part; bold),
-            );
+            let pre = if_plain!(state: NAME_CONTINUE_PRE, NAME_CONTINUE_PRE_PLAIN);
+            println!("{}{}", hl_if(highlight, pre), color!(name_part; bold),);
         }
     }
 
-    fn print_category_and_primary_tags(&self, highlight: bool) {
+    fn print_category_and_primary_tags(&self, state: &MealsState, highlight: bool) {
         let tag_str = self
             .tags
             .iter()
             .filter(|tag| tag.is_primary())
-            .map(|tag| tag.as_emoji())
+            .map(|tag| tag.as_id(state))
             .join(" ");
+        let tag_str_colored = if state.args.plain {
+            color!(tag_str; bright_black).to_string()
+        } else {
+            tag_str
+        };
+        let pre = if_plain!(state: CATEGORY_PRE, CATEGORY_PRE_PLAIN);
         println!(
             "{}{} {}",
-            hl_if(highlight, CATEGORY_PRE),
+            hl_if(highlight, pre),
             color!(self.category; bright_blue),
-            tag_str
+            tag_str_colored
         );
     }
 
-    fn print_descriptions(&self, width: usize, highlight: bool) {
+    fn print_descriptions(&self, state: &MealsState, width: usize, highlight: bool) {
+        let pre = if_plain!(state: OTHER_NOTE_PRE, OTHER_NOTE_PRE_PLAIN);
+        let pre_continue = if_plain!(
+            state: OTHER_NOTE_CONTINUE_PRE,
+            OTHER_NOTE_CONTINUE_PRE_PLAIN
+        );
         let max_note_width = width - OTHER_NOTE_PRE.width();
         for note in &self.descs {
             let mut note_parts = textwrap::wrap(note, max_note_width).into_iter();
             // There will always be a first part in the splitted string
-            println!(
-                "{}{}",
-                hl_if(highlight, OTHER_NOTE_PRE),
-                note_parts.next().unwrap()
-            );
+            println!("{}{}", hl_if(highlight, pre), note_parts.next().unwrap());
             for part in note_parts {
-                println!("{}{}", hl_if(highlight, OTHER_NOTE_CONTINUE_PRE), part);
+                println!("{}{}", hl_if(highlight, pre_continue), part);
             }
         }
     }
@@ -189,10 +197,11 @@ impl Meal {
         let prices = self.prices.to_terminal_string(state);
         let mut secondary: Vec<_> = self.tags.iter().filter(|tag| tag.is_secondary()).collect();
         secondary.sort_unstable();
-        let secondary_str = secondary.iter().map(|tag| tag.as_emoji()).join(" ");
+        let secondary_str = secondary.iter().map(|tag| tag.as_id(state)).join(" ");
+        let pre = if_plain!(state: PRICES_PRE, PRICES_PRE_PLAIN);
         println!(
             "{}{}  {}",
-            hl_if(highlight, PRICES_PRE),
+            hl_if(highlight, pre),
             prices,
             color!(secondary_str; bright_black),
         );
@@ -274,14 +283,14 @@ impl fmt::Display for Note {
 
 impl From<RawMeal> for Meal {
     fn from(raw: RawMeal) -> Self {
-        let splitted_notes = pass_info(&raw).parse_and_split_notes();
+        let (tags, descs) = pass_info(&raw).parse_and_split_notes();
         Self {
             _id: raw.id,
             name: raw.name,
             prices: raw.prices,
             category: raw.category,
-            tags: splitted_notes.tags,
-            descs: splitted_notes.descs,
+            tags,
+            descs,
         }
     }
 }

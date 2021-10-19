@@ -54,6 +54,7 @@
 use chrono::Duration;
 use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
+use structopt::StructOpt;
 use strum::IntoEnumIterator;
 use tracing::error;
 use unicode_width::UnicodeWidthStr;
@@ -71,6 +72,16 @@ macro_rules! color {
     }
 }
 
+macro_rules! if_plain {
+    ($state:ident: $fancy:expr, $plain:expr) => {
+        if $state.args.plain {
+            $plain
+        } else {
+            $fancy
+        }
+    };
+}
+
 mod cache;
 mod canteen;
 mod config;
@@ -78,7 +89,10 @@ mod error;
 mod geoip;
 mod meal;
 
-use config::{args::parse_human_date, State};
+use config::{
+    args::{parse_human_date, Args, MealsCommand},
+    State,
+};
 use error::{Error, Result, ResultExt};
 use meal::{tag::Tag, Meal};
 
@@ -106,33 +120,36 @@ fn real_main() -> Result<()> {
     // Initialize logger
     tracing_subscriber::fmt::init();
     // Construct client, load config and assemble cli args
-    let state = State::assemble()?;
+    let args = Args::from_args();
+    let state = State::assemble(&args)?;
     // Clear cache if requested
-    if state.cmd.clear_cache {
+    if state.args.clear_cache {
         cache::clear()?;
     }
     // Match over the user requested command
-    match state.cmd.command {
+    match &state.args.command {
         Some(Command::Meals(cmd)) => {
-            let state = State::from(state.config, state.client, cmd);
+            let state = State::from(state, cmd);
             let meals = Meal::fetch(&state)?;
             Meal::print_all(&state, &meals);
         }
-        Some(Command::Tomorrow(mut cmd)) => {
+        Some(Command::Tomorrow(cmd)) => {
             // Works like the meals command. But we replace the date with tomorrow!
+            let mut cmd = cmd.clone();
             cmd.date = parse_human_date("tomorrow").unwrap();
-            let state = State::from(state.config, state.client, cmd);
+            let state = State::from(state, &cmd);
             let meals = Meal::fetch(&state)?;
             Meal::print_all(&state, &meals);
         }
         Some(Command::Canteens(cmd)) => {
-            let state = State::from(state.config, state.client, cmd);
+            let state = State::from(state, cmd);
             let canteens = Canteen::fetch(&state)?;
             Canteen::print_all(&canteens);
         }
-        Some(Command::Tags) => print_tags(),
+        Some(Command::Tags) => print_tags(&state),
         None => {
-            let state = State::from(state.config, state.client, Default::default());
+            let cmd = MealsCommand::default();
+            let state = State::from(state, &cmd);
             let meals = Meal::fetch(&state)?;
             Meal::print_all(&state, &meals);
         }
@@ -140,18 +157,22 @@ fn real_main() -> Result<()> {
     Ok(())
 }
 
-fn print_tags() {
-    println!();
+fn print_tags<Cmd>(state: &State<Cmd>) {
     for tag in Tag::iter() {
-        const EMOJI_WIDTH: usize = 4;
+        println!();
+        const ID_WIDTH: usize = 4;
         const TEXT_INDENT: &str = "     ";
-        let emoji = tag.as_emoji();
-        let emoji_len = emoji.width();
-        let emoji_padded = format!(
-            "{}{}",
-            " ".repeat(EMOJI_WIDTH.saturating_sub(emoji_len)),
-            emoji
-        );
+        let emoji = if state.args.plain && tag.is_primary() {
+            format!("{:>width$}", "-", width = ID_WIDTH)
+        } else {
+            let emoji = tag.as_id(state);
+            let emoji_len = emoji.width();
+            format!(
+                "{}{}",
+                " ".repeat(ID_WIDTH.saturating_sub(emoji_len)),
+                emoji
+            )
+        };
         let description_width = get_sane_terminal_dimensions().0;
         let description = textwrap::fill(
             tag.describe(),
@@ -161,7 +182,7 @@ fn print_tags() {
         );
         println!(
             "{} {}\n{}",
-            color!(emoji_padded; bright_yellow, bold),
+            color!(emoji; bright_yellow, bold),
             color!(tag; bold),
             color!(description; bright_black),
         );

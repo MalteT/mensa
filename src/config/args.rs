@@ -11,15 +11,22 @@ use crate::{
 
 use super::PriceTags;
 
+/// OpenMensa.org CLI frontend.
 #[derive(Debug, StructOpt)]
+#[structopt(author)]
 pub struct Args {
     /// Clear the cache before doing anything.
     #[structopt(long)]
     pub clear_cache: bool,
 
     /// Path to the configuration file.
-    #[structopt(long, short, env = "MENSA_CONFIG", name = "PATH")]
+    #[structopt(long, short, env = "MENSA_CONFIG", name = "PATH", global = true)]
     pub config: Option<PathBuf>,
+
+    /// Use ascii characters only.
+    /// This does not prune non-ascii characters returned by the openmensa API.
+    #[structopt(long, env = "MENSA_ASCII_ONLY", global = true, takes_value = false)]
+    pub plain: bool,
 
     #[structopt(subcommand)]
     pub command: Option<Command>,
@@ -57,7 +64,7 @@ pub struct CanteensCommand {
     pub all: bool,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, StructOpt)]
 pub struct MealsCommand {
     /// Date for which to display information.
     ///
