@@ -40,7 +40,7 @@ pub struct Args {
                 )]
     pub color: ColorWhen,
 
-    /// Print plain json. Useful for shell scripts.
+    /// Output json. Useful for shell scripts.
     #[structopt(long, global = true, takes_value = false)]
     pub json: bool,
 

@@ -1,6 +1,6 @@
 use chrono::Duration;
 use reqwest::blocking::Client;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::info;
 
 use std::marker::PhantomData;
@@ -9,18 +9,18 @@ use crate::{
     cache,
     config::CanteensState,
     error::{Error, Result},
-    geoip, get_sane_terminal_dimensions, ENDPOINT, TTL_CANTEENS,
+    geoip, get_sane_terminal_dimensions, print_json, ENDPOINT, TTL_CANTEENS,
 };
 
 const ADRESS_INDENT: &str = "     ";
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Canteen {
     id: usize,
     name: String,
-    //city: String,
+    city: String,
     address: String,
-    //oordinates: [f32; 2],
+    coordinates: [f32; 2],
 }
 
 impl Canteen {
@@ -58,10 +58,15 @@ impl Canteen {
         PaginatedList::from(&state.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
     }
 
-    pub fn print_all(state: &CanteensState, canteens: &[Self]) {
-        for canteen in canteens {
-            println!();
-            canteen.print(state);
+    pub fn print_all(state: &CanteensState, canteens: &[Self]) -> Result<()> {
+        if state.args.json {
+            print_json(&canteens)
+        } else {
+            for canteen in canteens {
+                println!();
+                canteen.print(state);
+            }
+            Ok(())
         }
     }
 }

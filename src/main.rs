@@ -167,7 +167,7 @@ fn real_main() -> Result<()> {
         Some(Command::Canteens(cmd)) => {
             let state = State::from(state, cmd);
             let canteens = Canteen::fetch(&state)?;
-            Canteen::print_all(&state, &canteens);
+            Canteen::print_all(&state, &canteens)?;
         }
         Some(Command::Tags) => {
             Tag::print_all(&state)?;
