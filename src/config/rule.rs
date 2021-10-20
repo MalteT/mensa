@@ -4,7 +4,8 @@ use std::convert::TryFrom;
 
 use crate::{
     error::{Error, Result},
-    meal::{tag::Tag, Meal},
+    meal::Meal,
+    tag::Tag,
 };
 
 #[derive(Debug, Clone, Default, Deserialize)]

@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use regex::RegexSet;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
 
 use crate::config::State;
@@ -38,6 +38,9 @@ lazy_static! {
     .unwrap();
 }
 
+/// A tag describing a meal.
+///
+/// Contains allergy information, descriptions and categories.
 #[derive(
     Debug,
     Clone,
@@ -49,6 +52,7 @@ lazy_static! {
     PartialOrd,
     IntoPrimitive,
     TryFromPrimitive,
+    Serialize,
     Deserialize,
     EnumIter,
     Display,
@@ -84,6 +88,7 @@ pub enum Tag {
 }
 
 impl Tag {
+    /// Try deriving [`Tag`]s from the `raw` tag.
     pub fn parse_str(raw: &str) -> Vec<Self> {
         TAG_RE
             .matches(raw)
@@ -92,6 +97,9 @@ impl Tag {
             .collect()
     }
 
+    /// Is this a primary tag?
+    ///
+    /// Primary tags have an associated emoji and are not allergy information.
     pub fn is_primary(&self) -> bool {
         use Tag::*;
         match self {
@@ -102,10 +110,15 @@ impl Tag {
         }
     }
 
+    /// Is this **not** a primary tag?
     pub fn is_secondary(&self) -> bool {
         !self.is_primary()
     }
 
+    /// Describe this [`Tag`] with english words.
+    ///
+    /// This should add information where the enum variant itself
+    /// does not suffice.
     pub fn describe(&self) -> &'static str {
         match self {
             Self::Alcohol => "Contains alcohol",
@@ -140,7 +153,8 @@ impl Tag {
 
     /// This formats an identifier for this tag.
     ///
-    /// Will respect any settings given.
+    /// Will respect any settings given, i.e. emojis will be used
+    /// unless the output should be plain.
     pub fn as_id<Cmd>(&self, state: &State<Cmd>) -> String {
         match self {
             Self::Vegan => if_plain!(state: "🌱".into(), "Vegan".into()),

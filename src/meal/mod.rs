@@ -2,8 +2,7 @@ use chrono::Duration;
 use core::fmt;
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use owo_colors::{OwoColorize, Stream};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use unicode_width::UnicodeWidthStr;
 
 use std::collections::HashSet;
@@ -11,13 +10,11 @@ use std::collections::HashSet;
 use crate::{
     cache::fetch_json,
     config::{args::MealsCommand, MealsState, PriceTags},
-    error::{pass_info, Result},
-    get_sane_terminal_dimensions, State, ENDPOINT,
+    error::{pass_info, Error, Result},
+    get_sane_terminal_dimensions,
+    tag::Tag,
+    State, ENDPOINT,
 };
-
-pub mod tag;
-
-use self::tag::Tag;
 
 const NAME_PRE: &str = " ╭───╴";
 const NAME_PRE_PLAIN: &str = " - ";
@@ -36,9 +33,10 @@ lazy_static! {
     static ref TTL_MEALS: Duration = Duration::hours(1);
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(from = "RawMeal")]
 pub struct Meal {
+    #[serde(rename = "id")]
     pub _id: usize,
     pub name: String,
     pub tags: HashSet<Tag>,
@@ -57,7 +55,7 @@ struct RawMeal {
     category: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(debug, serde(deny_unknown_fields))]
 pub struct Prices {
     students: f32,
@@ -123,17 +121,24 @@ impl Meal {
     /// Print the given meals.
     ///
     /// Thi will respect passed cli arguments and the configuration.
-    pub fn print_all(state: &MealsState, meals: &[Self]) {
+    pub fn print_all(state: &MealsState, meals: &[Self]) -> Result<()> {
         // Load the filter which is used to select which meals to print.
         let filter = state.get_filter();
         // Load the favourites which will be used for marking meals.
         let favs = state.get_favs_rule();
-        for meal in meals {
-            if filter.is_match(meal) {
+        let meals = meals.iter().filter(|meal| filter.is_match(meal));
+        if state.args.json {
+            let stdout = std::io::stdout();
+            let output = stdout.lock();
+            serde_json::to_writer_pretty(output, &meals.collect::<Vec<_>>())
+                .map_err(|why| Error::Serializing(why, "writing meals as json"))
+        } else {
+            for meal in meals {
                 let is_fav = favs.is_match(meal);
                 println!();
                 meal.print(state, is_fav);
             }
+            Ok(())
         }
     }
 

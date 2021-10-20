@@ -109,15 +109,18 @@ mod config;
 mod error;
 mod geoip;
 mod meal;
+mod tag;
 
-use config::{
-    args::{parse_human_date, Args, MealsCommand},
-    State,
+use crate::{
+    canteen::Canteen,
+    config::{
+        args::{parse_human_date, Args, Command, MealsCommand},
+        State,
+    },
+    error::{Error, Result, ResultExt},
+    meal::Meal,
+    tag::Tag,
 };
-use error::{Error, Result, ResultExt};
-use meal::{tag::Tag, Meal};
-
-use crate::{canteen::Canteen, config::args::Command};
 
 const ENDPOINT: &str = "https://openmensa.org/api/v2";
 const MIN_TERM_WIDTH: usize = 20;
@@ -152,7 +155,7 @@ fn real_main() -> Result<()> {
         Some(Command::Meals(cmd)) => {
             let state = State::from(state, cmd);
             let meals = Meal::fetch(&state)?;
-            Meal::print_all(&state, &meals);
+            Meal::print_all(&state, &meals)?;
         }
         Some(Command::Tomorrow(cmd)) => {
             // Works like the meals command. But we replace the date with tomorrow!
@@ -160,7 +163,7 @@ fn real_main() -> Result<()> {
             cmd.date = parse_human_date("tomorrow").unwrap();
             let state = State::from(state, &cmd);
             let meals = Meal::fetch(&state)?;
-            Meal::print_all(&state, &meals);
+            Meal::print_all(&state, &meals)?;
         }
         Some(Command::Canteens(cmd)) => {
             let state = State::from(state, cmd);
@@ -172,7 +175,7 @@ fn real_main() -> Result<()> {
             let cmd = MealsCommand::default();
             let state = State::from(state, &cmd);
             let meals = Meal::fetch(&state)?;
-            Meal::print_all(&state, &meals);
+            Meal::print_all(&state, &meals)?;
         }
     }
     Ok(())

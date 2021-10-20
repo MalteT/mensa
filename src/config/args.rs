@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use crate::{
     error::{Error, Result},
-    meal::tag::Tag,
+    tag::Tag,
 };
 
 use super::PriceTags;
@@ -39,6 +39,10 @@ pub struct Args {
                 case_insensitive = true
                 )]
     pub color: ColorWhen,
+
+    /// Print plain json. Useful for shell scripts.
+    #[structopt(long, global = true, takes_value = false)]
+    pub json: bool,
 
     #[structopt(subcommand)]
     pub command: Option<Command>,
@@ -92,7 +96,11 @@ pub struct MealsCommand {
     pub canteen_id: Option<usize>,
 
     /// Specify which price tags should be displayed
-    #[structopt(long, short, env = "MENSA_PRICES", possible_values = &PriceTags::variants())]
+    #[structopt(long,
+                short,
+                env = "MENSA_PRICES",
+                possible_values = &PriceTags::variants(),
+                case_insensitive = true)]
     pub price: Option<Vec<PriceTags>>,
 
     #[structopt(long, env = "MENSA_OVERWRITE_FILTER", takes_value = false)]
