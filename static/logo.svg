@@ -2,9 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="50mm"
-   height="18.91597mm"
-   viewBox="0 0 50 18.91597"
+   width="46.10078mm"
+   height="18.123852mm"
+   viewBox="0 0 46.10078 18.123852"
    version="1.1"
    id="svg5"
    inkscape:version="1.1 (c68e22c387, 2021-05-23)"
@@ -26,9 +26,9 @@
      width="50mm"
      inkscape:showpageshadow="false"
      inkscape:lockguides="false"
-     inkscape:zoom="4.9057094"
-     inkscape:cx="73.28196"
-     inkscape:cy="36.080409"
+     inkscape:zoom="3.5563206"
+     inkscape:cx="64.814178"
+     inkscape:cy="14.621854"
      inkscape:window-width="1920"
      inkscape:window-height="1040"
      inkscape:window-x="0"
@@ -43,39 +43,22 @@
      inkscape:snap-others="true"
      inkscape:object-nodes="false"
      inkscape:snap-nodes="true"
-     inkscape:snap-global="true">
-    <sodipodi:guide
-       position="0,18.91597"
-       orientation="0,188.97638"
-       inkscape:locked="false"
-       id="guide42053" />
-    <sodipodi:guide
-       position="49.999999,18.91597"
-       orientation="71.493429,0"
-       inkscape:locked="false"
-       id="guide42055" />
-    <sodipodi:guide
-       position="49.999999,0"
-       orientation="0,-188.97638"
-       inkscape:locked="false"
-       id="guide42057" />
-    <sodipodi:guide
-       position="0,0"
-       orientation="-71.493429,0"
-       inkscape:locked="false"
-       id="guide42059" />
-  </sodipodi:namedview>
+     inkscape:snap-global="true" />
   <defs
      id="defs2" />
   <g
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="background"
-     style="display:inline">
+     style="display:inline"
+     transform="translate(-1.9495368,-0.39608221)">
     <path
        id="rect54231"
        style="fill:#ebdbb2;fill-opacity:1;stroke-width:0.202312"
-       d="M 4.8984375,0.4296875 C 3.1227869,0.54832252 1.7620021,2.2995955 1.9707031,4.0464844 1.9947558,7.9389237 1.9232311,11.836436 2.0052786,15.725815 2.1968454,17.437748 3.9118935,18.694905 5.5992187,18.5 18.775644,18.489543 31.953163,18.520887 45.128906,18.484375 46.893213,18.349358 48.235949,16.60697 48.029297,14.869531 48.005244,10.977092 48.076769,7.0795799 47.994721,3.1902006 47.803155,1.4782676 46.088106,0.22111077 44.400781,0.41601563 31.233454,0.42516286 18.065196,0.39774272 4.8984375,0.4296875 Z" />
+       d="M 4.8984375,0.4296875 C 3.1227869,0.54832252 1.7620021,2.2995955 1.9707031,4.0464844 1.9947558,7.9389237 1.9232311,11.836436 2.0052786,15.725815 2.1968454,17.437748 3.9118935,18.694905 5.5992187,18.5 18.775644,18.489543 31.953163,18.520887 45.128906,18.484375 46.893213,18.349358 48.235949,16.60697 48.029297,14.869531 48.005244,10.977092 48.076769,7.0795799 47.994721,3.1902006 47.803155,1.4782676 46.088106,0.22111077 44.400781,0.41601563 31.233454,0.42516286 18.065196,0.39774272 4.8984375,0.4296875 Z"
+       inkscape:export-filename="/home/malte/Downloads/logo.png"
+       inkscape:export-xdpi="704.93848"
+       inkscape:export-ydpi="704.93848" />
     <rect
        style="fill:#282828;fill-opacity:1;stroke-width:0.202312"
        id="rect29679"
@@ -90,7 +73,8 @@
      inkscape:groupmode="layer"
      id="layer3"
      inkscape:label="shadow"
-     sodipodi:insensitive="true">
+     sodipodi:insensitive="true"
+     transform="translate(-1.9495368,-0.39608221)">
     <text
        xml:space="preserve"
        style="font-weight:bold;font-size:14.2875px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font Bold';fill:#1d2021;fill-opacity:1;stroke-width:0.238125"
@@ -107,7 +91,8 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     sodipodi:insensitive="true">
+     sodipodi:insensitive="true"
+     transform="translate(-1.9495368,-0.39608221)">
     <text
        xml:space="preserve"
        style="font-size:4.7625px;line-height:1.25;font-family:'FiraCode Nerd Font';-inkscape-font-specification:'FiraCode Nerd Font';stroke-width:0.238125"
