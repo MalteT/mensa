@@ -60,4 +60,4 @@ See [config.toml](config.toml) for an example. Copy the file to:
 - `$HOME/Library/Application Support/mensa/config.toml` on **macOS**,
 - `{FOLDERID_RoamingAppData}\mensa\config.toml` on **Windows**
 
-License: MIT OR Apache-2.0
+License: MIT
