@@ -10,8 +10,8 @@ use std::collections::HashSet;
 use crate::{
     cache::fetch_json,
     config::{args::MealsCommand, MealsState, PriceTags},
-    error::{pass_info, Error, Result},
-    get_sane_terminal_dimensions,
+    error::{pass_info, Result},
+    get_sane_terminal_dimensions, print_json,
     tag::Tag,
     State, ENDPOINT,
 };
@@ -128,10 +128,7 @@ impl Meal {
         let favs = state.get_favs_rule();
         let meals = meals.iter().filter(|meal| filter.is_match(meal));
         if state.args.json {
-            let stdout = std::io::stdout();
-            let output = stdout.lock();
-            serde_json::to_writer_pretty(output, &meals.collect::<Vec<_>>())
-                .map_err(|why| Error::Serializing(why, "writing meals as json"))
+            print_json(&meals.collect::<Vec<_>>())
         } else {
             for meal in meals {
                 let is_fav = favs.is_match(meal);

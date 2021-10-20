@@ -63,10 +63,9 @@
 use chrono::Duration;
 use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
+use serde::Serialize;
 use structopt::StructOpt;
-use strum::IntoEnumIterator;
 use tracing::error;
-use unicode_width::UnicodeWidthStr;
 
 /// Colorizes the output.
 ///
@@ -170,7 +169,9 @@ fn real_main() -> Result<()> {
             let canteens = Canteen::fetch(&state)?;
             Canteen::print_all(&state, &canteens);
         }
-        Some(Command::Tags) => print_tags(&state),
+        Some(Command::Tags) => {
+            Tag::print_all(&state)?;
+        }
         None => {
             let cmd = MealsCommand::default();
             let state = State::from(state, &cmd);
@@ -181,38 +182,6 @@ fn real_main() -> Result<()> {
     Ok(())
 }
 
-fn print_tags<Cmd>(state: &State<Cmd>) {
-    for tag in Tag::iter() {
-        println!();
-        const ID_WIDTH: usize = 4;
-        const TEXT_INDENT: &str = "     ";
-        let emoji = if state.args.plain && tag.is_primary() {
-            format!("{:>width$}", "-", width = ID_WIDTH)
-        } else {
-            let emoji = tag.as_id(state);
-            let emoji_len = emoji.width();
-            format!(
-                "{}{}",
-                " ".repeat(ID_WIDTH.saturating_sub(emoji_len)),
-                emoji
-            )
-        };
-        let description_width = get_sane_terminal_dimensions().0;
-        let description = textwrap::fill(
-            tag.describe(),
-            textwrap::Options::new(description_width)
-                .initial_indent(TEXT_INDENT)
-                .subsequent_indent(TEXT_INDENT),
-        );
-        println!(
-            "{} {}\n{}",
-            color!(state: emoji; bright_yellow, bold),
-            color!(state: tag; bold),
-            color!(state: description; bright_black),
-        );
-    }
-}
-
 fn get_sane_terminal_dimensions() -> (usize, usize) {
     terminal_size::terminal_size()
         .map(|(w, h)| (w.0 as usize, h.0 as usize))
@@ -220,4 +189,11 @@ fn get_sane_terminal_dimensions() -> (usize, usize) {
         .ok_or(Error::UnableToGetTerminalSize)
         .log_warn()
         .unwrap_or((80, 80))
+}
+
+fn print_json<T: Serialize>(value: &T) -> Result<()> {
+    let stdout = std::io::stdout();
+    let output = stdout.lock();
+    serde_json::to_writer_pretty(output, value)
+        .map_err(|why| Error::Serializing(why, "writing meals as json"))
 }

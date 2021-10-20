@@ -1,10 +1,16 @@
+use std::collections::HashMap;
+
 use lazy_static::lazy_static;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use regex::RegexSet;
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumIter};
+use strum::{Display, EnumIter, IntoEnumIterator};
+use unicode_width::UnicodeWidthStr;
 
-use crate::config::State;
+use crate::{config::State, error::Result, get_sane_terminal_dimensions, print_json};
+
+const ID_WIDTH: usize = 4;
+const TEXT_INDENT: &str = "     ";
 
 lazy_static! {
     /// These must have the same order as the variants in the [`Tag`] enum.
@@ -169,5 +175,70 @@ impl Tag {
                 format!("{}", number)
             }
         }
+    }
+
+    /// Print this tag.
+    ///
+    /// Does **not** respect `--json`, use [`Self::print_all`].
+    pub fn print<Cmd>(&self, state: &State<Cmd>) {
+        let emoji = if state.args.plain && self.is_primary() {
+            format!("{:>width$}", "-", width = ID_WIDTH)
+        } else {
+            let emoji = self.as_id(state);
+            let emoji_len = emoji.width();
+            format!(
+                "{}{}",
+                " ".repeat(ID_WIDTH.saturating_sub(emoji_len)),
+                emoji
+            )
+        };
+        let description_width = get_sane_terminal_dimensions().0;
+        let description = textwrap::fill(
+            self.describe(),
+            textwrap::Options::new(description_width)
+                .initial_indent(TEXT_INDENT)
+                .subsequent_indent(TEXT_INDENT),
+        );
+        println!(
+            "{} {}\n{}",
+            color!(state: emoji; bright_yellow, bold),
+            color!(state: self; bold),
+            color!(state: description; bright_black),
+        );
+    }
+
+    /// Print all tags.
+    pub fn print_all<Cmd>(state: &State<Cmd>) -> Result<()> {
+        if state.args.json {
+            Self::print_all_json(state)
+        } else {
+            for tag in Tag::iter() {
+                println!();
+                tag.print(state);
+            }
+            Ok(())
+        }
+    }
+
+    /// Print all tags as json.
+    ///
+    /// This will result in a list of objects containing the following keys:
+    /// - id: An identifier, like 'Vegan' or '22'
+    /// - name: The name of the tag.
+    /// - desc: A simple description.
+    ///
+    fn print_all_json<Cmd>(state: &State<Cmd>) -> Result<()> {
+        let tags: Vec<HashMap<&str, String>> = Tag::iter()
+            .map(|tag| {
+                vec![
+                    ("id", tag.as_id(state)),
+                    ("name", tag.to_string()),
+                    ("desc", tag.describe().to_owned()),
+                ]
+                .into_iter()
+                .collect()
+            })
+            .collect();
+        print_json(&tags)
     }
 }
