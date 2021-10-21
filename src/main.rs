@@ -108,6 +108,7 @@ mod config;
 mod error;
 mod geoip;
 mod meal;
+mod pagination;
 mod tag;
 
 use crate::{
@@ -166,8 +167,8 @@ fn real_main() -> Result<()> {
         }
         Some(Command::Canteens(cmd)) => {
             let state = State::from(state, cmd);
-            let canteens = Canteen::fetch(&state)?;
-            Canteen::print_all(&state, &canteens)?;
+            let mut canteens = Canteen::fetch(&state)?;
+            Canteen::print_all(&state, &mut canteens)?;
         }
         Some(Command::Tags) => {
             Tag::print_all(&state)?;

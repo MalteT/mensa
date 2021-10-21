@@ -63,6 +63,22 @@ pub enum Command {
 
 #[derive(Debug, StructOpt)]
 pub struct CanteensCommand {
+    /// Ignore other arguments. List all canteens.
+    #[structopt(long, short)]
+    pub all: bool,
+
+    #[structopt(flatten)]
+    pub geo: GeoCommand,
+}
+
+#[derive(Debug, Clone, StructOpt)]
+pub enum CloseCommand {
+    /// Show meals from canteens around you. Will overwrite --id.
+    Close(GeoCommand),
+}
+
+#[derive(Debug, Clone, StructOpt)]
+pub struct GeoCommand {
     /// Latitude of your position. If omitted, geoip will be used to guess it.
     #[structopt(long)]
     pub lat: Option<f32>,
@@ -74,10 +90,6 @@ pub struct CanteensCommand {
     /// Maximum distance of potential canteens from your position in km.
     #[structopt(long, short, default_value = "10")]
     pub radius: f32,
-
-    /// Ignore other arguments. List all canteens.
-    #[structopt(long, short)]
-    pub all: bool,
 }
 
 #[derive(Debug, Clone, StructOpt)]
@@ -144,6 +156,9 @@ pub struct MealsCommand {
 
     #[structopt(long, env = "MENSA_FAVS_CATEGORY_SUB")]
     pub no_favs_cat: Vec<Regex>,
+
+    #[structopt(subcommand)]
+    pub close: Option<CloseCommand>,
 }
 
 arg_enum! {
@@ -185,6 +200,7 @@ impl Default for MealsCommand {
             no_favs_tag: vec![],
             favs_cat: vec![],
             no_favs_cat: vec![],
+            close: None,
         }
     }
 }

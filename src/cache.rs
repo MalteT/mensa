@@ -39,10 +39,12 @@ use reqwest::{
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{info, warn};
 
+mod fetchable;
 #[cfg(test)]
 mod tests;
 mod wrapper;
 
+pub use fetchable::Fetchable;
 pub use wrapper::clear_cache as clear;
 
 use crate::error::{Error, Result, ResultExt};

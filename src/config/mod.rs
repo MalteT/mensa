@@ -22,7 +22,7 @@ lazy_static! {
     static ref REQUEST_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
 pub struct ConfigFile {
     #[serde(default)]
@@ -58,7 +58,7 @@ impl ConfigFile {
 pub type CanteensState<'s> = State<'s, CanteensCommand>;
 pub type MealsState<'s> = State<'s, MealsCommand>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct State<'s, Cmd> {
     pub config: Option<ConfigFile>,
     pub client: Client,

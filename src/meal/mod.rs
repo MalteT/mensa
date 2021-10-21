@@ -5,12 +5,16 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use unicode_width::UnicodeWidthStr;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     cache::fetch_json,
-    config::{args::MealsCommand, MealsState, PriceTags},
-    error::{pass_info, Result},
+    canteen::{Canteen, CanteenId},
+    config::{
+        args::{CanteensCommand, CloseCommand, GeoCommand, MealsCommand},
+        MealsState, PriceTags,
+    },
+    error::{pass_info, Result, ResultExt},
     get_sane_terminal_dimensions, print_json,
     tag::Tag,
     State, ENDPOINT,
@@ -33,7 +37,7 @@ lazy_static! {
     static ref TTL_MEALS: Duration = Duration::hours(1);
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(from = "RawMeal")]
 pub struct Meal {
     #[serde(rename = "id")]
@@ -55,7 +59,7 @@ struct RawMeal {
     category: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(debug, serde(deny_unknown_fields))]
 pub struct Prices {
     students: f32,
@@ -108,32 +112,55 @@ impl Meal {
     /// Fetch the meals.
     ///
     /// This will respect passed cli arguments and the configuration.
-    pub fn fetch(state: &MealsState) -> Result<Vec<Self>> {
-        let url = format!(
-            "{}/canteens/{}/days/{}/meals",
-            ENDPOINT,
-            state.canteen_id()?,
-            state.date()
-        );
-        fetch_json(&state.client, url, *TTL_MEALS)
+    pub fn fetch(state: &MealsState) -> Result<HashMap<CanteenId, Vec<Self>>> {
+        match state.cmd.close {
+            Some(CloseCommand::Close(ref close)) => {
+                let meals = fetch_canteens_for_close_command(state, close)?
+                    .into_iter()
+                    .map(
+                        |canteen| match fetch_meals_for_canteen_id(state, canteen.id()) {
+                            Ok(meals) => Ok((canteen.id(), meals)),
+                            Err(why) => Err(why),
+                        },
+                    )
+                    // Drop any failed canteens with a warning
+                    .filter_map(ResultExt::log_warn)
+                    .collect();
+                Ok(meals)
+            }
+            None => {
+                let id = state.canteen_id()?;
+                let meals = fetch_meals_for_canteen_id(state, id)?;
+                let mut map = HashMap::new();
+                map.insert(id, meals);
+                Ok(map)
+            }
+        }
     }
 
     /// Print the given meals.
     ///
     /// Thi will respect passed cli arguments and the configuration.
-    pub fn print_all(state: &MealsState, meals: &[Self]) -> Result<()> {
+    pub fn print_all(state: &MealsState, meals: &HashMap<CanteenId, Vec<Self>>) -> Result<()> {
         // Load the filter which is used to select which meals to print.
         let filter = state.get_filter();
         // Load the favourites which will be used for marking meals.
         let favs = state.get_favs_rule();
-        let meals = meals.iter().filter(|meal| filter.is_match(meal));
+        // Filter all meals
+        let meal_map = meals.iter().map(|(id, meals)| {
+            let keep = meals.iter().filter(|meal| filter.is_match(meal));
+            (id, keep.collect::<Vec<_>>())
+        });
         if state.args.json {
-            print_json(&meals.collect::<Vec<_>>())
+            print_json(&meal_map.collect::<HashMap<_, _>>())
         } else {
-            for meal in meals {
-                let is_fav = favs.is_match(meal);
-                println!();
-                meal.print(state, is_fav);
+            for (id, meals) in meal_map {
+                println!("{}", id);
+                for meal in meals {
+                    let is_fav = favs.is_match(meal);
+                    println!();
+                    meal.print(state, is_fav);
+                }
             }
             Ok(())
         }
@@ -277,6 +304,28 @@ where
     } else {
         format!("{}", text)
     }
+}
+
+fn fetch_canteens_for_close_command(
+    state: &MealsState,
+    close: &GeoCommand,
+) -> Result<Vec<Canteen>> {
+    let canteens_cmd = CanteensCommand {
+        all: false,
+        geo: close.clone(),
+    };
+    let canteen_state = State::from(state.clone(), &canteens_cmd);
+    Canteen::fetch(&canteen_state)
+}
+
+fn fetch_meals_for_canteen_id(state: &MealsState, canteen_id: usize) -> Result<Vec<Meal>> {
+    let url = format!(
+        "{}/canteens/{}/days/{}/meals",
+        ENDPOINT,
+        canteen_id,
+        state.date()
+    );
+    fetch_json(&state.client, url, *TTL_MEALS)
 }
 
 impl fmt::Display for Note {

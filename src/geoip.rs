@@ -26,15 +26,16 @@ struct LatLong {
 /// This will use the cli arguments if given and
 /// fetch any missing values from api.geoip.rs.
 pub fn fetch(state: &CanteensState) -> Result<(f32, f32)> {
-    Ok(if state.cmd.lat.is_none() || state.cmd.long.is_none() {
+    let geo = &state.cmd.geo;
+    Ok(if geo.lat.is_none() || geo.long.is_none() {
         let guessed = fetch_geoip(&state.client)?;
         (
-            state.cmd.lat.unwrap_or(guessed.latitude),
-            state.cmd.long.unwrap_or(guessed.longitude),
+            geo.lat.unwrap_or(guessed.latitude),
+            geo.long.unwrap_or(guessed.longitude),
         )
     } else {
         // Cannot panic, due to above if
-        (state.cmd.lat.unwrap(), state.cmd.long.unwrap())
+        (geo.lat.unwrap(), geo.long.unwrap())
     })
 }
 

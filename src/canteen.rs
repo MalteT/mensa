@@ -1,33 +1,49 @@
-use chrono::Duration;
-use reqwest::blocking::Client;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use std::marker::PhantomData;
+mod de;
+mod ser;
 
 use crate::{
-    cache,
-    config::CanteensState,
-    error::{Error, Result},
-    geoip, get_sane_terminal_dimensions, print_json, ENDPOINT, TTL_CANTEENS,
+    cache::Fetchable, config::CanteensState, error::Result, geoip, get_sane_terminal_dimensions,
+    meal::Meal, pagination::PaginatedList, print_json, ENDPOINT, TTL_CANTEENS,
 };
+
+use self::ser::CanteenCompleteWithoutMeals;
+
+pub type CanteenId = usize;
 
 const ADRESS_INDENT: &str = "     ";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(from = "de::CanteenDeserialized")]
 pub struct Canteen {
-    id: usize,
+    id: CanteenId,
+    #[serde(flatten)]
+    meta: Fetchable<Meta>,
+    meals: Fetchable<Vec<Meal>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Meta {
     name: String,
     city: String,
     address: String,
-    coordinates: [f32; 2],
+    coordinates: Option<[f32; 2]>,
+}
+
+impl Meta {
+    pub fn fetch(id: CanteenId) -> Result<Self> {
+        todo!()
+    }
 }
 
 impl Canteen {
-    pub fn print(&self, state: &CanteensState) {
+    pub fn print(&mut self, state: &CanteensState) -> Result<()> {
         let (width, _) = get_sane_terminal_dimensions();
         let address = textwrap::fill(
-            &self.address,
+            self.address()?,
             textwrap::Options::new(width)
                 .initial_indent(ADRESS_INDENT)
                 .subsequent_indent(ADRESS_INDENT),
@@ -35,9 +51,29 @@ impl Canteen {
         println!(
             "{} {}\n{}",
             color!(state: format!("{:>4}", self.id); bold, bright_yellow),
-            color!(state: self.name; bold),
+            color!(state: self.meta()?.name; bold),
             color!(state: address; bright_black),
         );
+        Ok(())
+    }
+
+    pub fn id(&self) -> CanteenId {
+        self.id
+    }
+
+    pub fn name(&mut self) -> Result<&String> {
+        Ok(&self.meta()?.address)
+    }
+
+    pub fn address(&mut self) -> Result<&String> {
+        Ok(&self.meta()?.address)
+    }
+
+    pub fn complete_without_meals(&mut self) -> Result<CanteenCompleteWithoutMeals<'_>> {
+        Ok(CanteenCompleteWithoutMeals {
+            id: self.id,
+            meta: self.meta()?,
+        })
     }
 
     pub fn fetch(state: &CanteensState) -> Result<Vec<Self>> {
@@ -48,99 +84,37 @@ impl Canteen {
             let (lat, long) = geoip::fetch(state)?;
             info!(
                 "Fetching canteens for lat: {}, long: {} with radius: {}",
-                lat, long, state.cmd.radius
+                lat, long, state.cmd.geo.radius
             );
             format!(
                 "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
-                ENDPOINT, lat, long, state.cmd.radius,
+                ENDPOINT, lat, long, state.cmd.geo.radius,
             )
         };
         PaginatedList::from(&state.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
     }
 
-    pub fn print_all(state: &CanteensState, canteens: &[Self]) -> Result<()> {
+    pub fn print_all(state: &CanteensState, canteens: &mut [Self]) -> Result<()> {
         if state.args.json {
-            print_json(&canteens)
+            Self::print_all_json(canteens)
         } else {
             for canteen in canteens {
                 println!();
-                canteen.print(state);
+                canteen.print(state)?;
             }
             Ok(())
         }
     }
-}
 
-struct PaginatedList<'client, T>
-where
-    T: DeserializeOwned,
-{
-    client: &'client Client,
-    next_page: Option<String>,
-    ttl: Duration,
-    __item: PhantomData<T>,
-}
-
-impl<'client, T> PaginatedList<'client, T>
-where
-    T: DeserializeOwned,
-{
-    pub fn from<S: AsRef<str>>(client: &'client Client, url: S, ttl: Duration) -> Result<Self> {
-        Ok(PaginatedList {
-            client,
-            ttl,
-            next_page: Some(url.as_ref().into()),
-            __item: PhantomData,
-        })
+    fn print_all_json(canteens: &mut [Self]) -> Result<()> {
+        let serializable: Vec<_> = canteens
+            .iter_mut()
+            .map(|c| c.complete_without_meals())
+            .try_collect()?;
+        print_json(&serializable)
     }
-}
 
-impl<'client, T> PaginatedList<'client, T>
-where
-    T: DeserializeOwned,
-{
-    pub fn try_flatten_and_collect(self) -> Result<Vec<T>> {
-        let mut ret = vec![];
-        for value in self {
-            let value = value?;
-            ret.extend(value);
-        }
-        Ok(ret)
-    }
-}
-
-impl<'client, T> Iterator for PaginatedList<'client, T>
-where
-    T: DeserializeOwned,
-{
-    type Item = Result<Vec<T>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // This will yield until no next_page is available
-        let curr_page = self.next_page.take()?;
-        let res = cache::fetch(self.client, &curr_page, self.ttl, |text, headers| {
-            let val = serde_json::from_str::<Vec<_>>(&text)
-                .map_err(|why| Error::Deserializing(why, "fetching json in pagination iterator"))?;
-            Ok((val, headers.this_page, headers.next_page, headers.last_page))
-        });
-        match res {
-            Ok((val, this_page, next_page, last_page)) => {
-                // Only update next_page, if we're not on the last page!
-                // This should be safe for all cases
-                if this_page.unwrap_or_default() < last_page.unwrap_or_default() {
-                    // OpenMensa returns empty lists for large pages
-                    // this is just to keep me sane
-                    if !val.is_empty() {
-                        self.next_page = next_page;
-                    }
-                }
-                Some(Ok(val))
-            }
-            Err(why) => {
-                // Implicitly does not set the next_page url, so
-                // this iterator is done now
-                Some(Err(why))
-            }
-        }
+    fn meta(&mut self) -> Result<&Meta> {
+        self.meta.fetch(|| Meta::fetch(self.id))
     }
 }
