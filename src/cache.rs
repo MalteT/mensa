@@ -47,7 +47,10 @@ mod wrapper;
 pub use fetchable::Fetchable;
 pub use wrapper::clear_cache as clear;
 
-use crate::error::{Error, Result, ResultExt};
+use crate::{
+    config::CONF,
+    error::{Error, Result, ResultExt},
+};
 
 /// Returned by most functions in this module.
 type TextAndHeaders = (String, Headers);
@@ -81,12 +84,12 @@ enum CacheResult<T> {
 }
 
 /// Wrapper around [`fetch`] for responses that contain json.
-pub fn fetch_json<U, T>(client: &Client, url: U, local_ttl: Duration) -> Result<T>
+pub fn fetch_json<U, T>(url: U, local_ttl: Duration) -> Result<T>
 where
     U: IntoUrl,
     T: DeserializeOwned,
 {
-    fetch(client, url, local_ttl, |text, _| {
+    fetch(&CONF.client, url, local_ttl, |text, _| {
         // TODO: Check content header?
         serde_json::from_str(&text).map_err(|why| Error::Deserializing(why, "fetching json"))
     })

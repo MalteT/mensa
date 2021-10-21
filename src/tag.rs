@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, IntoEnumIterator};
 use unicode_width::UnicodeWidthStr;
 
-use crate::{config::State, error::Result, get_sane_terminal_dimensions, print_json};
+use crate::{config::CONF, error::Result, get_sane_terminal_dimensions, print_json};
 
 const ID_WIDTH: usize = 4;
 const TEXT_INDENT: &str = "     ";
@@ -161,14 +161,14 @@ impl Tag {
     ///
     /// Will respect any settings given, i.e. emojis will be used
     /// unless the output should be plain.
-    pub fn as_id<Cmd>(&self, state: &State<Cmd>) -> String {
+    pub fn as_id(&self) -> String {
         match self {
-            Self::Vegan => if_plain!(state: "🌱".into(), "Vegan".into()),
-            Self::Vegetarian => if_plain!(state:"🧀".into(), "Vegetarian".into()),
-            Self::Pig => if_plain!(state:"🐖".into(), "Pig".into()),
-            Self::Fish => if_plain!(state:"🐟".into(), "Fish".into()),
-            Self::Cow => if_plain!(state:"🐄".into(), "Cow".into()),
-            Self::Poultry => if_plain!(state:"🐓".into(), "Poultry".into()),
+            Self::Vegan => if_plain!("🌱".into(), "Vegan".into()),
+            Self::Vegetarian => if_plain!("🧀".into(), "Vegetarian".into()),
+            Self::Pig => if_plain!("🐖".into(), "Pig".into()),
+            Self::Fish => if_plain!("🐟".into(), "Fish".into()),
+            Self::Cow => if_plain!("🐄".into(), "Cow".into()),
+            Self::Poultry => if_plain!("🐓".into(), "Poultry".into()),
             _ => {
                 // If no special emoji is available, just use the id
                 let number: u8 = (*self).into();
@@ -180,11 +180,11 @@ impl Tag {
     /// Print this tag.
     ///
     /// Does **not** respect `--json`, use [`Self::print_all`].
-    pub fn print<Cmd>(&self, state: &State<Cmd>) {
-        let emoji = if state.args.plain && self.is_primary() {
+    pub fn print(&self) {
+        let emoji = if CONF.args.plain && self.is_primary() {
             format!("{:>width$}", "-", width = ID_WIDTH)
         } else {
-            let emoji = self.as_id(state);
+            let emoji = self.as_id();
             let emoji_len = emoji.width();
             format!(
                 "{}{}",
@@ -201,20 +201,20 @@ impl Tag {
         );
         println!(
             "{} {}\n{}",
-            color!(state: emoji; bright_yellow, bold),
-            color!(state: self; bold),
-            color!(state: description; bright_black),
+            color!(emoji; bright_yellow, bold),
+            color!(self; bold),
+            color!(description; bright_black),
         );
     }
 
     /// Print all tags.
-    pub fn print_all<Cmd>(state: &State<Cmd>) -> Result<()> {
-        if state.args.json {
-            Self::print_all_json(state)
+    pub fn print_all() -> Result<()> {
+        if CONF.args.json {
+            Self::print_all_json()
         } else {
             for tag in Tag::iter() {
                 println!();
-                tag.print(state);
+                tag.print();
             }
             Ok(())
         }
@@ -227,11 +227,11 @@ impl Tag {
     /// - name: The name of the tag.
     /// - desc: A simple description.
     ///
-    fn print_all_json<Cmd>(state: &State<Cmd>) -> Result<()> {
+    fn print_all_json() -> Result<()> {
         let tags: Vec<HashMap<&str, String>> = Tag::iter()
             .map(|tag| {
                 vec![
-                    ("id", tag.as_id(state)),
+                    ("id", tag.as_id()),
                     ("name", tag.to_string()),
                     ("desc", tag.describe().to_owned()),
                 ]

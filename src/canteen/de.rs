@@ -1,6 +1,7 @@
+use chrono::NaiveDate;
 use serde::Deserialize;
 
-use crate::cache::Fetchable;
+use crate::{cache::Fetchable, error::Error};
 
 use super::{CanteenId, Meta};
 
@@ -26,5 +27,22 @@ impl From<CanteenDeserialized> for super::Canteen {
             }),
             meals: Fetchable::None,
         }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DayDeserialized {
+    date: String,
+    closed: bool,
+}
+
+impl TryFrom<DayDeserialized> for super::Day {
+    type Error = Error;
+
+    fn try_from(raw: DayDeserialized) -> Result<Self, Self::Error> {
+        Ok(Self {
+            date: NaiveDate::parse_from_str(&raw.date, "%Y-%m-%d").map_err(Error::InvalidDate)?,
+            closed: raw.closed,
+        })
     }
 }

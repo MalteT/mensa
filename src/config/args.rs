@@ -57,8 +57,6 @@ pub enum Command {
     Tags,
     /// Default. Show meals.
     Meals(MealsCommand),
-    /// Shortcut for `mensa meals -d tomorrow`
-    Tomorrow(MealsCommand),
 }
 
 #[derive(Debug, StructOpt)]
@@ -100,7 +98,8 @@ pub struct MealsCommand {
     #[structopt(long, short,
                 env = "MENSA_DATE",
                 parse(try_from_str = parse_human_date),
-                default_value = "today")]
+                default_value = "today",
+                global = true)]
     pub date: NaiveDate,
 
     /// Canteen ID for which to fetch meals.

@@ -64,7 +64,6 @@ use chrono::Duration;
 use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
 use serde::Serialize;
-use structopt::StructOpt;
 use tracing::error;
 
 /// Colorizes the output.
@@ -72,11 +71,11 @@ use tracing::error;
 /// This will colorize for Stdout based on heuristics and colors
 /// from the [`owo_colors`] library.
 macro_rules! color {
-    ($state:ident: $what:expr; $($fn:ident),+) => {
+    ($what:expr; $($fn:ident),+) => {
         {
             use owo_colors::{OwoColorize, Stream};
             use crate::config::args::ColorWhen;
-            match $state.args.color {
+            match crate::config::CONF.args.color {
                 ColorWhen::Always => {
                     $what $(. $fn())+ .to_string()
                 }
@@ -93,8 +92,8 @@ macro_rules! color {
 }
 
 macro_rules! if_plain {
-    ($state:ident: $fancy:expr, $plain:expr) => {
-        if $state.args.plain {
+    ($fancy:expr, $plain:expr) => {
+        if crate::config::CONF.args.plain {
             $plain
         } else {
             $fancy
@@ -113,10 +112,7 @@ mod tag;
 
 use crate::{
     canteen::Canteen,
-    config::{
-        args::{parse_human_date, Args, Command, MealsCommand},
-        State,
-    },
+    config::{args::Command, CONF},
     error::{Error, Result, ResultExt},
     meal::Meal,
     tag::Tag,
@@ -129,6 +125,7 @@ lazy_static! {
     static ref DIR: ProjectDirs =
         ProjectDirs::from("rocks", "tammena", "mensa").expect("Could not detect home directory");
     static ref TTL_CANTEENS: Duration = Duration::days(1);
+    static ref TTL_MEALS: Duration = Duration::hours(1);
 }
 
 fn main() -> Result<()> {
@@ -143,41 +140,22 @@ fn main() -> Result<()> {
 fn real_main() -> Result<()> {
     // Initialize logger
     tracing_subscriber::fmt::init();
-    // Construct client, load config and assemble cli args
-    let args = Args::from_args();
-    let state = State::assemble(&args)?;
     // Clear cache if requested
-    if state.args.clear_cache {
+    if CONF.args.clear_cache {
         cache::clear()?;
     }
     // Match over the user requested command
-    match &state.args.command {
-        Some(Command::Meals(cmd)) => {
-            let state = State::from(state, cmd);
-            let meals = Meal::fetch(&state)?;
-            Meal::print_all(&state, &meals)?;
+    match CONF.cmd() {
+        Command::Meals(_) => {
+            let mut canteens = Canteen::infer()?;
+            Meal::print_for_all_canteens(&mut canteens)?;
         }
-        Some(Command::Tomorrow(cmd)) => {
-            // Works like the meals command. But we replace the date with tomorrow!
-            let mut cmd = cmd.clone();
-            cmd.date = parse_human_date("tomorrow").unwrap();
-            let state = State::from(state, &cmd);
-            let meals = Meal::fetch(&state)?;
-            Meal::print_all(&state, &meals)?;
+        Command::Canteens(_) => {
+            let mut canteens = Canteen::infer()?;
+            Canteen::print_all(&mut canteens)?;
         }
-        Some(Command::Canteens(cmd)) => {
-            let state = State::from(state, cmd);
-            let mut canteens = Canteen::fetch(&state)?;
-            Canteen::print_all(&state, &mut canteens)?;
-        }
-        Some(Command::Tags) => {
-            Tag::print_all(&state)?;
-        }
-        None => {
-            let cmd = MealsCommand::default();
-            let state = State::from(state, &cmd);
-            let meals = Meal::fetch(&state)?;
-            Meal::print_all(&state, &meals)?;
+        Command::Tags => {
+            Tag::print_all()?;
         }
     }
     Ok(())

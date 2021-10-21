@@ -33,6 +33,8 @@ pub enum Error {
     NonSuccessStatusCode(String, reqwest::StatusCode),
     #[error("read invalid utf8 bytes")]
     DecodingUtf8(#[source] std::string::FromUtf8Error),
+    #[error("invalid date encountered: {_0}")]
+    InvalidDate(#[source] chrono::ParseError),
 }
 
 pub trait ResultExt<T> {

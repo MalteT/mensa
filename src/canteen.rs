@@ -1,4 +1,8 @@
+use std::collections::HashMap;
+
+use chrono::NaiveDate;
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -6,8 +10,16 @@ mod de;
 mod ser;
 
 use crate::{
-    cache::Fetchable, config::CanteensState, error::Result, geoip, get_sane_terminal_dimensions,
-    meal::Meal, pagination::PaginatedList, print_json, ENDPOINT, TTL_CANTEENS,
+    cache::{fetch_json, Fetchable},
+    config::{
+        args::{CloseCommand, Command, GeoCommand},
+        CONF,
+    },
+    error::Result,
+    geoip, get_sane_terminal_dimensions,
+    meal::Meal,
+    pagination::PaginatedList,
+    print_json, ENDPOINT, TTL_CANTEENS, TTL_MEALS,
 };
 
 use self::ser::CanteenCompleteWithoutMeals;
@@ -16,13 +28,20 @@ pub type CanteenId = usize;
 
 const ADRESS_INDENT: &str = "     ";
 
+lazy_static! {
+    static ref EMPTY: Vec<Meal> = Vec::new();
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(from = "de::CanteenDeserialized")]
 pub struct Canteen {
     id: CanteenId,
     #[serde(flatten)]
     meta: Fetchable<Meta>,
-    meals: Fetchable<Vec<Meal>>,
+    /// A map from dates to lists of meals.
+    ///
+    /// The list of dates itself is fetchable as are the lists of meals.
+    meals: Fetchable<HashMap<NaiveDate, Fetchable<Vec<Meal>>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +52,13 @@ pub struct Meta {
     coordinates: Option<[f32; 2]>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(try_from = "de::DayDeserialized")]
+pub struct Day {
+    date: NaiveDate,
+    closed: bool,
+}
+
 impl Meta {
     pub fn fetch(id: CanteenId) -> Result<Self> {
         todo!()
@@ -40,7 +66,28 @@ impl Meta {
 }
 
 impl Canteen {
-    pub fn print(&mut self, state: &CanteensState) -> Result<()> {
+    /// Infer canteens from the config.
+    ///
+    /// # Command
+    /// - Meals:
+    ///   - Close: Canteens close to the current location
+    ///   - Else: Canteen given by id
+    /// - Else: Panic!
+    pub fn infer() -> Result<Vec<Self>> {
+        match CONF.cmd() {
+            Command::Meals(cmd) => match cmd.close {
+                Some(CloseCommand::Close(ref geo)) => Self::fetch_for_geo(geo, false),
+                None => {
+                    let id = CONF.canteen_id()?;
+                    Ok(vec![id.into()])
+                }
+            },
+            Command::Canteens(cmd) => Self::fetch_for_geo(&cmd.geo, cmd.all),
+            Command::Tags => unreachable!("BUG: This is not relevant here"),
+        }
+    }
+
+    pub fn print(&mut self) -> Result<()> {
         let (width, _) = get_sane_terminal_dimensions();
         let address = textwrap::fill(
             self.address()?,
@@ -50,9 +97,9 @@ impl Canteen {
         );
         println!(
             "{} {}\n{}",
-            color!(state: format!("{:>4}", self.id); bold, bright_yellow),
-            color!(state: self.meta()?.name; bold),
-            color!(state: address; bright_black),
+            color!(format!("{:>4}", self.id); bold, bright_yellow),
+            color!(self.meta()?.name; bold),
+            color!(address; bright_black),
         );
         Ok(())
     }
@@ -76,33 +123,27 @@ impl Canteen {
         })
     }
 
-    pub fn fetch(state: &CanteensState) -> Result<Vec<Self>> {
-        let url = if state.cmd.all {
-            info!("Fetching all canteens");
-            format!("{}/canteens", ENDPOINT)
-        } else {
-            let (lat, long) = geoip::fetch(state)?;
-            info!(
-                "Fetching canteens for lat: {}, long: {} with radius: {}",
-                lat, long, state.cmd.geo.radius
-            );
-            format!(
-                "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
-                ENDPOINT, lat, long, state.cmd.geo.radius,
-            )
-        };
-        PaginatedList::from(&state.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
-    }
-
-    pub fn print_all(state: &CanteensState, canteens: &mut [Self]) -> Result<()> {
-        if state.args.json {
+    pub fn print_all(canteens: &mut [Self]) -> Result<()> {
+        if CONF.args.json {
             Self::print_all_json(canteens)
         } else {
             for canteen in canteens {
                 println!();
-                canteen.print(state)?;
+                canteen.print()?;
             }
             Ok(())
+        }
+    }
+
+    pub fn meals_at_mut(&mut self, date: &NaiveDate) -> Result<Option<&mut Vec<Meal>>> {
+        let id = self.id();
+        let dates = self.meals.fetch_mut(|| fetch_dates_for_canteen(self.id))?;
+        match dates.get_mut(date) {
+            Some(meals) => {
+                let meals = meals.fetch_mut(|| fetch_meals(id, date))?;
+                Ok(Some(meals))
+            }
+            None => Ok(None),
         }
     }
 
@@ -116,5 +157,47 @@ impl Canteen {
 
     fn meta(&mut self) -> Result<&Meta> {
         self.meta.fetch(|| Meta::fetch(self.id))
+    }
+
+    fn fetch_for_geo(geo: &GeoCommand, all: bool) -> Result<Vec<Self>> {
+        let url = if all {
+            info!("Fetching all canteens");
+            format!("{}/canteens", ENDPOINT)
+        } else {
+            let (lat, long) = geoip::infer()?;
+            info!(
+                "Fetching canteens for lat: {}, long: {} with radius: {}",
+                lat, long, geo.radius
+            );
+            format!(
+                "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
+                ENDPOINT, lat, long, geo.radius,
+            )
+        };
+        PaginatedList::from(&CONF.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
+    }
+}
+
+fn fetch_dates_for_canteen(id: CanteenId) -> Result<HashMap<NaiveDate, Fetchable<Vec<Meal>>>> {
+    let url = format!("{}/canteens/{}/days", ENDPOINT, id,);
+    let days: Vec<Day> = fetch_json(url, *TTL_MEALS)?;
+    Ok(days
+        .into_iter()
+        .map(|day| (day.date, Fetchable::None))
+        .collect())
+}
+
+fn fetch_meals(id: CanteenId, date: &NaiveDate) -> Result<Vec<Meal>> {
+    let url = format!("{}/canteens/{}/days/{}/meals", ENDPOINT, id, date);
+    fetch_json(url, *TTL_MEALS)
+}
+
+impl From<CanteenId> for Canteen {
+    fn from(id: CanteenId) -> Self {
+        Self {
+            id,
+            meta: Fetchable::None,
+            meals: Fetchable::None,
+        }
     }
 }

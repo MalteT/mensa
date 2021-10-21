@@ -2,10 +2,16 @@
 
 use chrono::Duration;
 use lazy_static::lazy_static;
-use reqwest::blocking::Client;
 use serde::Deserialize;
 
-use crate::{cache::fetch_json, config::CanteensState, error::Result};
+use crate::{
+    cache::fetch_json,
+    config::{
+        args::{CloseCommand, Command},
+        CONF,
+    },
+    error::Result,
+};
 
 lazy_static! {
     static ref TTL_GEOIP: Duration = Duration::minutes(5);
@@ -21,26 +27,34 @@ struct LatLong {
     longitude: f32,
 }
 
-/// Derive Latitude and Longitude from the [`CanteensState`].
+/// Infer Latitude and Longitude from the config.
 ///
 /// This will use the cli arguments if given and
 /// fetch any missing values from api.geoip.rs.
-pub fn fetch(state: &CanteensState) -> Result<(f32, f32)> {
-    let geo = &state.cmd.geo;
-    Ok(if geo.lat.is_none() || geo.long.is_none() {
-        let guessed = fetch_geoip(&state.client)?;
+pub fn infer() -> Result<(f32, f32)> {
+    let (lat, long) = match CONF.cmd() {
+        Command::Canteens(cmd) => (cmd.geo.lat, cmd.geo.long),
+        Command::Meals(cmd) => match &cmd.close {
+            Some(CloseCommand::Close(geo)) => (geo.lat, geo.long),
+            None => (None, None),
+        },
+        Command::Tags => (None, None),
+    };
+    let (lat, long) = if lat.is_none() || long.is_none() {
+        let guessed = fetch_geoip()?;
         (
-            geo.lat.unwrap_or(guessed.latitude),
-            geo.long.unwrap_or(guessed.longitude),
+            lat.unwrap_or(guessed.latitude),
+            long.unwrap_or(guessed.longitude),
         )
     } else {
         // Cannot panic, due to above if
-        (geo.lat.unwrap(), geo.long.unwrap())
-    })
+        (lat.unwrap(), long.unwrap())
+    };
+    Ok((lat, long))
 }
 
 /// Fetch geoip for current ip.
-fn fetch_geoip(client: &Client) -> Result<LatLong> {
+fn fetch_geoip() -> Result<LatLong> {
     let url = "https://api.geoip.rs";
-    fetch_json(client, url, *TTL_GEOIP)
+    fetch_json(url, *TTL_GEOIP)
 }

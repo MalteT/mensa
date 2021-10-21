@@ -26,13 +26,36 @@ impl<T> Fetchable<T> {
                 let value = f()?;
                 *self = Self::Fetched(value);
                 // This is safe, since we've just fetched successfully
-                Ok(self.unwrap())
+                Ok(self.assume_fetched())
+            }
+        }
+    }
+
+    pub fn fetch_mut<F>(&mut self, f: F) -> Result<&mut T>
+    where
+        F: FnOnce() -> Result<T>,
+    {
+        match self {
+            Self::Fetched(ref mut value) => Ok(value),
+            Self::None => {
+                let value = f()?;
+                *self = Self::Fetched(value);
+                // This is safe, since we've just fetched successfully
+                Ok(self.assume_fetched_mut())
             }
         }
     }
 
     /// Panics if the resource doesn't exist
-    fn unwrap(&self) -> &T {
+    fn assume_fetched(&self) -> &T {
+        match self {
+            Self::Fetched(value) => value,
+            Self::None => panic!("Called .unwrap() on a Fetchable that is not fetched!"),
+        }
+    }
+
+    /// Panics if the resource doesn't exist
+    fn assume_fetched_mut(&mut self) -> &mut T {
         match self {
             Self::Fetched(value) => value,
             Self::None => panic!("Called .unwrap() on a Fetchable that is not fetched!"),

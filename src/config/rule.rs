@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 
 use crate::{
     error::{Error, Result},
-    meal::Meal,
+    meal::MealComplete,
     tag::Tag,
 };
 
@@ -42,7 +42,7 @@ struct RawRegexRule {
 }
 
 impl Rule {
-    pub fn is_match(&self, meal: &Meal) -> bool {
+    pub fn is_match(&self, meal: &MealComplete) -> bool {
         let all_adds_empty =
             self.tag.is_empty_add() && self.category.is_empty_add() && self.name.is_empty_add();
         let any_add = self.tag.is_match_add(meal)
@@ -64,12 +64,12 @@ impl Rule {
 }
 
 impl TagRule {
-    fn is_match_add(&self, meal: &Meal) -> bool {
-        self.add.iter().any(|tag| meal.tags.contains(tag))
+    fn is_match_add(&self, meal: &MealComplete) -> bool {
+        self.add.iter().any(|tag| meal.meta.tags.contains(tag))
     }
 
-    fn is_match_sub(&self, meal: &Meal) -> bool {
-        self.sub.iter().any(|tag| meal.tags.contains(tag))
+    fn is_match_sub(&self, meal: &MealComplete) -> bool {
+        self.sub.iter().any(|tag| meal.meta.tags.contains(tag))
     }
 
     fn is_empty_add(&self) -> bool {
@@ -101,16 +101,16 @@ impl RegexRule {
         Self { add, sub }
     }
 
-    fn is_match_add(&self, meal: &Meal) -> bool {
+    fn is_match_add(&self, meal: &MealComplete) -> bool {
         match self.add {
-            Some(ref rset) => rset.is_match(&meal.category),
+            Some(ref rset) => rset.is_match(&meal.meta.category),
             None => false,
         }
     }
 
-    fn is_match_sub(&self, meal: &Meal) -> bool {
+    fn is_match_sub(&self, meal: &MealComplete) -> bool {
         match self.sub {
-            Some(ref rset) => rset.is_match(&meal.category),
+            Some(ref rset) => rset.is_match(&meal.meta.category),
             None => false,
         }
     }
