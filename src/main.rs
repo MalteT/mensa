@@ -109,8 +109,8 @@ mod geoip;
 mod meal;
 mod pagination;
 mod tag;
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 use crate::{
     canteen::Canteen,
