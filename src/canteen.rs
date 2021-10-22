@@ -61,8 +61,9 @@ pub struct Day {
 }
 
 impl Meta {
-    pub fn fetch(_id: CanteenId) -> Result<Self> {
-        todo!()
+    pub fn fetch(id: CanteenId) -> Result<Self> {
+        let url = format!("{}/canteens/{}", ENDPOINT, id);
+        fetch_json(url, *TTL_CANTEENS)
     }
 }
 
@@ -111,6 +112,10 @@ impl Canteen {
 
     pub fn address(&mut self) -> Result<&String> {
         Ok(&self.meta()?.address)
+    }
+
+    pub fn name(&mut self) -> Result<&String> {
+        Ok(&self.meta()?.name)
     }
 
     pub fn complete_without_meals(&mut self) -> Result<CanteenCompleteWithoutMeals<'_>> {

@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use std::{
@@ -21,6 +22,10 @@ use crate::{
 pub use self::ser::MealComplete;
 
 pub type MealId = usize;
+
+lazy_static! {
+    static ref PRE: String = color!(if_plain!(" ┊", " |"); bright_black);
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(from = "de::Meal")]
@@ -74,40 +79,62 @@ impl Meal {
     ///
     /// This will respect passed cli arguments and the configuration.
     pub fn print_for_all_canteens(canteens: &mut [Canteen]) -> Result<()> {
+        if CONF.args.json {
+            Self::print_for_all_canteens_json(canteens)
+        } else {
+            Self::print_for_all_canteens_no_json(canteens)
+        }
+    }
+
+    fn print_for_all_canteens_no_json(canteens: &mut [Canteen]) -> Result<()> {
         // Load the filter which is used to select which meals to print.
         let filter = CONF.get_filter_rule();
         // Load the favourites which will be used for marking meals.
         let favs = CONF.get_favourites_rule();
         // The day for which to print meals
         let day = CONF.date();
-        // Filter all meals
-        let meals = canteens.iter_mut().map(|canteen| {
-            let id = canteen.id();
-            let meals: Vec<_> = match canteen.meals_at_mut(day)? {
-                Some(meals) => meals
-                    .iter_mut()
-                    .map(|meal| meal.complete())
-                    .filter_ok(|meal| filter.is_match(meal))
-                    .try_collect()?,
-                None => vec![],
-            };
-            Result::Ok((id, meals))
-        });
-        if CONF.args.json {
-            let map: HashMap<CanteenId, Vec<_>> = meals.try_collect()?;
-            print_json(&map)
-        } else {
-            for res in meals {
-                let (canteen_id, meals) = res?;
-                println!("{}", canteen_id);
-                for meal in meals {
-                    let is_fav = favs.is_match(&meal);
-                    println!();
-                    meal.print(is_fav);
+        for canteen in canteens {
+            let name = canteen.name()?.clone();
+            match canteen.meals_at_mut(day)? {
+                Some(meals) => {
+                    println!("\n {}", color!(name; bright_black));
+                    for meal in meals {
+                        let complete = meal.complete()?;
+                        if filter.is_match(&complete) {
+                            let is_fav = favs.is_match(&complete);
+                            println!("{}", *PRE);
+                            complete.print(is_fav);
+                        }
+                    }
                 }
+                None => todo!(),
             }
-            Ok(())
         }
+        Ok(())
+    }
+
+    fn print_for_all_canteens_json(canteens: &mut [Canteen]) -> Result<()> {
+        // Load the filter which is used to select which meals to print.
+        let filter = CONF.get_filter_rule();
+        // The day for which to print meals
+        let day = CONF.date();
+        // Filter all meals
+        let meals: HashMap<CanteenId, Vec<_>> = canteens
+            .iter_mut()
+            .map(|canteen| {
+                let id = canteen.id();
+                let meals: Vec<_> = match canteen.meals_at_mut(day)? {
+                    Some(meals) => meals
+                        .iter_mut()
+                        .map(|meal| meal.complete())
+                        .filter_ok(|meal| filter.is_match(meal))
+                        .try_collect()?,
+                    None => vec![],
+                };
+                Result::Ok((id, meals))
+            })
+            .try_collect()?;
+        print_json(&meals)
     }
 }
 

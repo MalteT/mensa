@@ -1,25 +1,22 @@
 use core::fmt;
 
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use serde::Serialize;
 use unicode_width::UnicodeWidthStr;
 
 use crate::get_sane_terminal_dimensions;
 
-use super::{MealId, Meta};
+use super::{MealId, Meta, PRE};
 
-const NAME_PRE: &str = " ╭───╴";
-const NAME_PRE_PLAIN: &str = " - ";
-const NAME_CONTINUE_PRE: &str = " ┊    ";
-const NAME_CONTINUE_PRE_PLAIN: &str = "     ";
-const OTHER_NOTE_PRE: &str = " ├╴";
-const OTHER_NOTE_PRE_PLAIN: &str = "   ";
-const OTHER_NOTE_CONTINUE_PRE: &str = " ┊ ";
-const OTHER_NOTE_CONTINUE_PRE_PLAIN: &str = "     ";
-const CATEGORY_PRE: &str = " ├─╴";
-const CATEGORY_PRE_PLAIN: &str = "   ";
-const PRICES_PRE: &str = " ╰╴";
-const PRICES_PRE_PLAIN: &str = "   ";
+lazy_static! {
+    static ref NAME_PRE: &'static str = if_plain!(" ╭───╴", " - ");
+    static ref NAME_CONTINUE_PRE: &'static str = if_plain!(" ┊    ", "     ");
+    static ref OTHER_NOTE_PRE: &'static str = if_plain!(" ├╴", "   ");
+    static ref OTHER_NOTE_CONTINUE_PRE: &'static str = if_plain!(" ┊ ", "     ");
+    static ref CATEGORY_PRE: &'static str = if_plain!(" ├─╴", "   ");
+    static ref PRICES_PRE: &'static str = if_plain!(" ╰╴", "   ");
+}
 
 #[derive(Debug, Serialize)]
 pub struct MealComplete<'c> {
@@ -45,16 +42,20 @@ impl<'c> MealComplete<'c> {
         let mut name_parts = textwrap::wrap(&self.meta.name, max_name_width).into_iter();
         // There will always be a first part of the splitted string
         let first_name_part = name_parts.next().unwrap();
-        let pre = if_plain!(NAME_PRE, NAME_PRE_PLAIN);
         println!(
-            "{}{}",
-            hl_if(highlight, pre),
+            "{}{}{}",
+            *PRE,
+            hl_if(highlight, *NAME_PRE),
             color!(hl_if(highlight, first_name_part); bold),
         );
         for name_part in name_parts {
             let name_part = hl_if(highlight, name_part);
-            let pre = if_plain!(NAME_CONTINUE_PRE, NAME_CONTINUE_PRE_PLAIN);
-            println!("{}{}", hl_if(highlight, pre), color!(name_part; bold),);
+            println!(
+                "{}{}{}",
+                *PRE,
+                hl_if(highlight, *NAME_CONTINUE_PRE),
+                color!(name_part; bold),
+            );
         }
     }
 
@@ -67,11 +68,11 @@ impl<'c> MealComplete<'c> {
             .map(|tag| tag.as_id());
         let tag_str_colored =
             if_plain!(color!(tag_str.join(" "); bright_black), tag_str.join(", "));
-        let pre = if_plain!(CATEGORY_PRE, CATEGORY_PRE_PLAIN);
         let comma_if_plain = if_plain!("", ",");
         println!(
-            "{}{}{} {}",
-            hl_if(highlight, pre),
+            "{}{}{}{} {}",
+            *PRE,
+            hl_if(highlight, *CATEGORY_PRE),
             color!(self.meta.category; bright_blue),
             color!(comma_if_plain; bright_black),
             tag_str_colored
@@ -79,15 +80,23 @@ impl<'c> MealComplete<'c> {
     }
 
     fn print_descriptions(&self, width: usize, highlight: bool) {
-        let pre = if_plain!(OTHER_NOTE_PRE, OTHER_NOTE_PRE_PLAIN);
-        let pre_continue = if_plain!(OTHER_NOTE_CONTINUE_PRE, OTHER_NOTE_CONTINUE_PRE_PLAIN);
         let max_note_width = width - OTHER_NOTE_PRE.width();
         for note in &self.meta.descs {
             let mut note_parts = textwrap::wrap(note, max_note_width).into_iter();
             // There will always be a first part in the splitted string
-            println!("{}{}", hl_if(highlight, pre), note_parts.next().unwrap());
+            println!(
+                "{}{}{}",
+                *PRE,
+                hl_if(highlight, *OTHER_NOTE_PRE),
+                note_parts.next().unwrap()
+            );
             for part in note_parts {
-                println!("{}{}", hl_if(highlight, pre_continue), part);
+                println!(
+                    "{}{}{}",
+                    *PRE,
+                    hl_if(highlight, *OTHER_NOTE_CONTINUE_PRE),
+                    part
+                );
             }
         }
     }
@@ -102,10 +111,10 @@ impl<'c> MealComplete<'c> {
             .collect();
         secondary.sort_unstable();
         let secondary_str = secondary.iter().map(|tag| tag.as_id()).join(" ");
-        let pre = if_plain!(PRICES_PRE, PRICES_PRE_PLAIN);
         println!(
-            "{}{}  {}",
-            hl_if(highlight, pre),
+            "{}{}{}  {}",
+            *PRE,
+            hl_if(highlight, *PRICES_PRE),
             prices,
             color!(secondary_str; bright_black),
         );
