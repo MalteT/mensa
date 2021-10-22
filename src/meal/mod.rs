@@ -94,10 +94,10 @@ impl Meal {
         // The day for which to print meals
         let day = CONF.date();
         for canteen in canteens {
-            let name = canteen.name()?.clone();
+            let name = canteen.name()?;
+            println!("\n {}", color!(name; bright_black));
             match canteen.meals_at_mut(day)? {
                 Some(meals) => {
-                    println!("\n {}", color!(name; bright_black));
                     for meal in meals {
                         let complete = meal.complete()?;
                         if filter.is_match(&complete) {
@@ -107,7 +107,9 @@ impl Meal {
                         }
                     }
                 }
-                None => todo!(),
+                None => {
+                    println!("{} {}", *PRE, color!("no meals listed"; dimmed))
+                }
             }
         }
         Ok(())
