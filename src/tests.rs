@@ -1,3 +1,5 @@
+//! TODO: These tests fail when run via `nix flake check`
+
 use std::time::Duration;
 
 use assert_cmd::Command;

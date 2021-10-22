@@ -7,8 +7,8 @@ use std::{
     fmt,
 };
 
+mod complete;
 mod de;
-mod ser;
 
 use crate::{
     cache::Fetchable,
@@ -19,7 +19,7 @@ use crate::{
     tag::Tag,
 };
 
-pub use self::ser::MealComplete;
+pub use self::complete::MealComplete;
 
 pub type MealId = usize;
 
