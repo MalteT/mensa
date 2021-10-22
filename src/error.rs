@@ -1,7 +1,5 @@
-use core::fmt;
-
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -79,10 +77,4 @@ where
             }
         }
     }
-}
-
-/// Debug print the given value using [`info`].
-pub fn pass_info<T: fmt::Debug>(t: T) -> T {
-    info!("{:#?}", &t);
-    t
 }

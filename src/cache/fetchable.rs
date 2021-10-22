@@ -12,10 +12,6 @@ pub enum Fetchable<T> {
 }
 
 impl<T> Fetchable<T> {
-    pub fn is_fetched(&self) -> bool {
-        matches!(self, Self::Fetched(_))
-    }
-
     pub fn fetch<F>(&mut self, f: F) -> Result<&T>
     where
         F: FnOnce() -> Result<T>,

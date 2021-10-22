@@ -40,15 +40,15 @@ pub fn infer() -> Result<(f32, f32)> {
         },
         Command::Tags => (None, None),
     };
-    let (lat, long) = if lat.is_none() || long.is_none() {
-        let guessed = fetch_geoip()?;
-        (
-            lat.unwrap_or(guessed.latitude),
-            long.unwrap_or(guessed.longitude),
-        )
-    } else {
-        // Cannot panic, due to above if
-        (lat.unwrap(), long.unwrap())
+    let (lat, long) = match (lat, long) {
+        (Some(lat), Some(long)) => (lat, long),
+        (lat, long) => {
+            let guessed = fetch_geoip()?;
+            (
+                lat.unwrap_or(guessed.latitude),
+                long.unwrap_or(guessed.longitude),
+            )
+        }
     };
     Ok((lat, long))
 }

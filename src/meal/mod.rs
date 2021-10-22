@@ -53,18 +53,12 @@ enum Note {
 }
 
 impl Meta {
-    fn fetch(id: MealId) -> Result<Meta> {
+    fn fetch(_id: MealId) -> Result<Meta> {
         todo!()
     }
 }
 
 impl Meal {
-    /// Print this [`Meal`] to the terminal.
-    pub fn print(&mut self, highlight: bool) -> Result<()> {
-        self.complete()?.print(highlight);
-        Ok(())
-    }
-
     pub fn meta(&mut self) -> Result<&Meta> {
         self.meta.fetch(|| Meta::fetch(self.id))
     }

@@ -32,10 +32,7 @@ use cacache::Metadata;
 use chrono::{Duration, TimeZone};
 use lazy_static::lazy_static;
 use regex::Regex;
-use reqwest::{
-    blocking::{Client, Response},
-    IntoUrl, StatusCode,
-};
+use reqwest::{blocking::Response, IntoUrl, StatusCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -89,14 +86,14 @@ where
     U: IntoUrl,
     T: DeserializeOwned,
 {
-    fetch(&CONF.client, url, local_ttl, |text, _| {
+    fetch(url, local_ttl, |text, _| {
         // TODO: Check content header?
         serde_json::from_str(&text).map_err(|why| Error::Deserializing(why, "fetching json"))
     })
 }
 
 /// Generic method for fetching remote url-based resources that may be cached.
-pub fn fetch<Map, U, T>(client: &Client, url: U, local_ttl: Duration, map: Map) -> Result<T>
+pub fn fetch<Map, U, T>(url: U, local_ttl: Duration, map: Map) -> Result<T>
 where
     U: IntoUrl,
     Map: FnOnce(String, Headers) -> Result<T>,
@@ -114,20 +111,20 @@ where
         }
         Ok(CacheResult::Miss) => {
             info!("Missed cache on {:?}", url);
-            get_and_update_cache(client, url, None, None)?
+            get_and_update_cache(url, None, None)?
         }
         Ok(CacheResult::Stale(old_headers, meta)) => {
             info!("Stale cache on {:?}", url);
             // The cache is stale but may still be valid
             // Request the resource with set IF_NONE_MATCH tag and update
             // the caches metadata or value
-            match get_and_update_cache(client, url, old_headers.etag, Some(meta)) {
+            match get_and_update_cache(url, old_headers.etag, Some(meta)) {
                 Ok(tah) => tah,
                 Err(why) => {
                     warn!("{}", why);
                     // Fetching and updating failed for some reason, retry
                     // without the IF_NONE_MATCH tag and fail if unsuccessful
-                    get_and_update_cache(client, url, None, None)?
+                    get_and_update_cache(url, None, None)?
                 }
             }
         }
@@ -135,7 +132,7 @@ where
             // Fetching from the cache failed for some reason, just
             // request the resource and update the cache
             warn!("{}", why);
-            get_and_update_cache(client, url, None, None)?
+            get_and_update_cache(url, None, None)?
         }
     };
     // Apply the map and return the result
@@ -174,13 +171,12 @@ fn try_load_cache(url: &str, local_ttl: Duration) -> Result<CacheResult<TextAndH
 /// If an optional `etag` is provided, add the If-None-Match header, and thus
 /// only get an update if the new ETAG differs from the given `etag`.
 fn get_and_update_cache(
-    client: &Client,
     url: &str,
     etag: Option<String>,
     meta: Option<Metadata>,
 ) -> Result<TextAndHeaders> {
     // Construct the request
-    let mut builder = client.get(url);
+    let mut builder = CONF.client.get(url);
     // Add If-None-Match header, if etag is present
     if let Some(etag) = etag {
         let etag_key = reqwest::header::IF_NONE_MATCH;

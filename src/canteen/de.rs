@@ -42,7 +42,7 @@ impl TryFrom<DayDeserialized> for super::Day {
     fn try_from(raw: DayDeserialized) -> Result<Self, Self::Error> {
         Ok(Self {
             date: NaiveDate::parse_from_str(&raw.date, "%Y-%m-%d").map_err(Error::InvalidDate)?,
-            closed: raw.closed,
+            _closed: raw.closed,
         })
     }
 }

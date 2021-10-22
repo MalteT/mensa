@@ -56,11 +56,12 @@ pub struct Meta {
 #[serde(try_from = "de::DayDeserialized")]
 pub struct Day {
     date: NaiveDate,
-    closed: bool,
+    #[serde(rename = "closed")]
+    _closed: bool,
 }
 
 impl Meta {
-    pub fn fetch(id: CanteenId) -> Result<Self> {
+    pub fn fetch(_id: CanteenId) -> Result<Self> {
         todo!()
     }
 }
@@ -106,10 +107,6 @@ impl Canteen {
 
     pub fn id(&self) -> CanteenId {
         self.id
-    }
-
-    pub fn name(&mut self) -> Result<&String> {
-        Ok(&self.meta()?.address)
     }
 
     pub fn address(&mut self) -> Result<&String> {
@@ -174,7 +171,7 @@ impl Canteen {
                 ENDPOINT, lat, long, geo.radius,
             )
         };
-        PaginatedList::from(&CONF.client, url, *TTL_CANTEENS)?.try_flatten_and_collect()
+        PaginatedList::new(url, *TTL_CANTEENS)?.consume()
     }
 }
 

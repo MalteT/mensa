@@ -1,5 +1,9 @@
+//! Wrapper around [`reqwest`] for multi-page requests.
+//!
+//! Only relevant/tested on the OpenMensa API.
+
 use chrono::Duration;
-use reqwest::blocking::Client;
+use itertools::Itertools;
 use serde::de::DeserializeOwned;
 
 use std::marker::PhantomData;
@@ -9,23 +13,42 @@ use crate::{
     error::{Error, Result},
 };
 
-pub struct PaginatedList<'client, T>
+/// An iterator over json pages containing lists.
+///
+/// # Example
+///
+/// ## Page 1
+///
+/// ```json
+/// [ { "id": 1 },
+///   { "id": 2 } ]
+/// ```
+///
+/// ## Page 2
+///
+/// ```json
+/// [ { "id": 3 },
+///   { "id": 4 } ]
+/// ```
+pub struct PaginatedList<T>
 where
     T: DeserializeOwned,
 {
-    client: &'client Client,
     next_page: Option<String>,
     ttl: Duration,
     __item: PhantomData<T>,
 }
 
-impl<'client, T> PaginatedList<'client, T>
+impl<T> PaginatedList<T>
 where
     T: DeserializeOwned,
 {
-    pub fn from<S: AsRef<str>>(client: &'client Client, url: S, ttl: Duration) -> Result<Self> {
+    /// Create a new page iterator
+    ///
+    /// Takes the `url` for the first page and a
+    /// `local_ttl` for the cached values.
+    pub fn new<S: AsRef<str>>(url: S, ttl: Duration) -> Result<Self> {
         Ok(PaginatedList {
-            client,
             ttl,
             next_page: Some(url.as_ref().into()),
             __item: PhantomData,
@@ -33,21 +56,17 @@ where
     }
 }
 
-impl<'client, T> PaginatedList<'client, T>
+impl<T> PaginatedList<T>
 where
     T: DeserializeOwned,
 {
-    pub fn try_flatten_and_collect(self) -> Result<Vec<T>> {
-        let mut ret = vec![];
-        for value in self {
-            let value = value?;
-            ret.extend(value);
-        }
-        Ok(ret)
+    /// Consumes this iterator, flattening the collected pages.
+    pub fn consume(self) -> Result<Vec<T>> {
+        self.flatten_ok().try_collect()
     }
 }
 
-impl<'client, T> Iterator for PaginatedList<'client, T>
+impl<T> Iterator for PaginatedList<T>
 where
     T: DeserializeOwned,
 {
@@ -56,7 +75,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         // This will yield until no next_page is available
         let curr_page = self.next_page.take()?;
-        let res = cache::fetch(self.client, &curr_page, self.ttl, |text, headers| {
+        let res = cache::fetch(curr_page, self.ttl, |text, headers| {
             let val = serde_json::from_str::<Vec<_>>(&text)
                 .map_err(|why| Error::Deserializing(why, "fetching json in pagination iterator"))?;
             Ok((val, headers.this_page, headers.next_page, headers.last_page))
