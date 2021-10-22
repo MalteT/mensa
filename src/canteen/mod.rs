@@ -176,13 +176,13 @@ impl Canteen {
                 ENDPOINT, lat, long, geo.radius,
             )
         };
-        PaginatedList::new(url, *TTL_CANTEENS)?.consume()
+        PaginatedList::new(url, *TTL_CANTEENS).consume()
     }
 }
 
 fn fetch_dates_for_canteen(id: CanteenId) -> Result<HashMap<NaiveDate, Fetchable<Vec<Meal>>>> {
     let url = format!("{}/canteens/{}/days", ENDPOINT, id,);
-    let days: Vec<Day> = fetch_json(url, *TTL_MEALS)?;
+    let days: Vec<Day> = PaginatedList::new(url, *TTL_MEALS).consume()?;
     Ok(days
         .into_iter()
         .map(|day| (day.date, Fetchable::None))
@@ -191,7 +191,7 @@ fn fetch_dates_for_canteen(id: CanteenId) -> Result<HashMap<NaiveDate, Fetchable
 
 fn fetch_meals(id: CanteenId, date: &NaiveDate) -> Result<Vec<Meal>> {
     let url = format!("{}/canteens/{}/days/{}/meals", ENDPOINT, id, date);
-    fetch_json(url, *TTL_MEALS)
+    PaginatedList::new(url, *TTL_MEALS).consume()
 }
 
 impl From<CanteenId> for Canteen {

@@ -47,12 +47,12 @@ where
     ///
     /// Takes the `url` for the first page and a
     /// `local_ttl` for the cached values.
-    pub fn new<S: AsRef<str>>(url: S, ttl: Duration) -> Result<Self> {
-        Ok(PaginatedList {
+    pub fn new<S: AsRef<str>>(url: S, ttl: Duration) -> Self {
+        PaginatedList {
             ttl,
             next_page: Some(url.as_ref().into()),
             __item: PhantomData,
-        })
+        }
     }
 }
 
