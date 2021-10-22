@@ -15,24 +15,26 @@ const TEXT_INDENT: &str = "     ";
 lazy_static! {
     /// These must have the same order as the variants in the [`Tag`] enum.
     static ref TAG_RE: RegexSet = RegexSet::new(&[
+        r"(?i)säue?rungsmittel",
         r"(?i)alkohol",
-        r"(?i)antioxidation",
+        r"(?i)antiox[iy]dation",
         r"(?i)geschwärzt",
+        r"(?i)kakaohaltige fettglasur",
         r"(?i)farbstoff",
         r"(?i)rind",
-        r"(?i)eier",
+        r"(?i)hühnerei|eier|^ei$|enthält ei\*",
         r"(?i)fisch",
         r"(?i)geschmacksverstärker",
         r"(?i)knoblauch",
-        r"(?i)gluten",
+        r"(?i)gluten|weizen|hafer|gerste|roggen",
+        r"(?i)milch|laktose",
         r"(?i)lupine?",
-        r"(?i)milch",
         r"(?i)senf",
-        r"(?i)schalenfrüchte|nüsse",
+        r"(?i)schalenfrüchte|nüsse|walnuss|pistazie|mandeln",
         r"(?i)phosphat",
         r"(?i)schwein",
         r"(?i)geflügel",
-        r"(?i)konservierung",
+        r"(?i)konservierung|konserviert",
         r"(?i)sellerie",
         r"(?i)sesam",
         r"(?i)soja",
@@ -40,6 +42,7 @@ lazy_static! {
         r"(?i)süßungsmittel",
         r"(?i)vegan",
         r"(?i)fleischlos|vegetarisch|ohne fleisch",
+        r"(?i)(ge)?wachs(t)?",
     ])
     .unwrap();
 }
@@ -66,18 +69,22 @@ lazy_static! {
 #[repr(u8)]
 #[remain::sorted]
 pub enum Tag {
+    Acidifier,
     Alcohol,
     Antioxidant,
     Blackened,
+    #[strum(to_string = "Cacao Containing Fat Glaze")]
+    CacaoContainingFatGlaze,
     Coloring,
     Cow,
     Egg,
     Fish,
+    #[strum(to_string = "Flavor Enhancer")]
     FlavorEnhancer,
     Garlic,
     Gluten,
+    Lactose,
     Lupin,
-    Milk,
     Mustard,
     Nuts,
     Phosphate,
@@ -91,6 +98,7 @@ pub enum Tag {
     Sweetener,
     Vegan,
     Vegetarian,
+    Waxed,
 }
 
 impl Tag {
@@ -110,9 +118,28 @@ impl Tag {
         use Tag::*;
         match self {
             Cow | Fish | Pig | Poultry | Vegan | Vegetarian => true,
-            Alcohol | Antioxidant | Blackened | Coloring | Egg | FlavorEnhancer | Garlic
-            | Gluten | Lupin | Milk | Mustard | Nuts | Phosphate | Preservative | Sellery
-            | Sesame | Soy | Sulfite | Sweetener => false,
+            Acidifier
+            | Alcohol
+            | Antioxidant
+            | Blackened
+            | CacaoContainingFatGlaze
+            | Coloring
+            | Egg
+            | FlavorEnhancer
+            | Garlic
+            | Gluten
+            | Lupin
+            | Lactose
+            | Mustard
+            | Nuts
+            | Phosphate
+            | Preservative
+            | Sellery
+            | Sesame
+            | Soy
+            | Sulfite
+            | Sweetener
+            | Waxed => false,
         }
     }
 
@@ -127,10 +154,14 @@ impl Tag {
     /// does not suffice.
     pub fn describe(&self) -> &'static str {
         match self {
+            Self::Acidifier => "Contains artificial acidifier",
             Self::Alcohol => "Contains alcohol",
             Self::Antioxidant => "Contains an antioxidant",
             Self::Blackened => {
                 "Contains ingredients that have been blackened, i.e. blackened olives"
+            }
+            Self::CacaoContainingFatGlaze => {
+                "Contains a cheap oil-based glazing instead of real chocolate glazing"
             }
             Self::Coloring => "Contains food coloring",
             Self::Cow => "Contains meat from cattle",
@@ -139,8 +170,8 @@ impl Tag {
             Self::FlavorEnhancer => "Contains artificial flavor enhancer",
             Self::Garlic => "Contains garlic",
             Self::Gluten => "Contains gluten",
+            Self::Lactose => "Contains milk",
             Self::Lupin => "Contains lupin",
-            Self::Milk => "Contains milk",
             Self::Mustard => "Contains mustard",
             Self::Nuts => "Contains nuts",
             Self::Phosphate => "Contains phosphate",
@@ -154,6 +185,7 @@ impl Tag {
             Self::Sweetener => "Contains artificial sweetener",
             Self::Vegan => "Does not contain any animal produce",
             Self::Vegetarian => "Does not contain any meat",
+            Self::Waxed => "Some ingredients have been waxed",
         }
     }
 
