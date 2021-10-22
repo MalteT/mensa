@@ -36,6 +36,7 @@ pub fn cmd_mensa_meals_json() {
 }
 
 #[test]
+#[cfg(not(windows))]
 pub fn cmd_mensa_canteens() {
     Command::cargo_bin("mensa")
         .unwrap()
