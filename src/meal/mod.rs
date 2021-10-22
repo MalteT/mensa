@@ -46,9 +46,10 @@ pub struct Meta {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(debug, serde(deny_unknown_fields))]
 pub struct Prices {
-    students: f32,
-    employees: f32,
-    others: f32,
+    students: Option<f32>,
+    employees: Option<f32>,
+    pupils: Option<f32>,
+    others: Option<f32>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -165,6 +166,9 @@ impl Prices {
             if price_tags.contains(&PriceTags::Employee) {
                 values.push(self.employees);
             }
+            if price_tags.contains(&PriceTags::Pupil) {
+                values.push(self.pupils);
+            }
             if price_tags.contains(&PriceTags::Other) {
                 values.push(self.others);
             }
@@ -172,7 +176,10 @@ impl Prices {
         };
         let price_tags: Vec<_> = price_tags
             .into_iter()
-            .map(|tag| format!("{:.2}€", tag))
+            .map(|tag| match tag {
+                Some(tag) => color!(format!("{:.2}€", tag); bright_green),
+                None => color!(String::from("-.--€"); bright_black),
+            })
             .map(|tag| color!(tag; bright_green))
             .collect();
         match price_tags.len() {

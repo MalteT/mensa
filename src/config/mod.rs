@@ -156,6 +156,7 @@ arg_enum! {
     pub enum PriceTags {
         Student,
         Employee,
+        Pupil,
         Other,
     }
 }
