@@ -34,7 +34,7 @@ pub enum Error {
     #[error("invalid date encountered: {_0}")]
     InvalidDate(#[source] chrono::ParseError),
     #[error("internal url parsing error. This is probably a bug")]
-    InternalUrlError,
+    InternalUrl,
 }
 
 pub trait ResultExt<T> {
