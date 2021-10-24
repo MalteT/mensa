@@ -1,6 +1,6 @@
 [package]
 name = "mensa"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Malte Tammena <malte.tammena@pm.me>"]
 edition = "2021"
 resolver = "2"
