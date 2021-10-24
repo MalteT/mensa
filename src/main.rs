@@ -74,25 +74,40 @@ use tracing::error;
 ///
 /// This will colorize for Stdout based on heuristics and colors
 /// from the [`owo_colors`] library.
+///
+/// **Windows**: Automatic color defaults to no color at the moment!
+// TODO: Make colors work on windows
 macro_rules! color {
     ($what:expr; $($fn:ident),+) => {
         {
-            use owo_colors::{OwoColorize, Stream};
-            use crate::config::args::ColorWhen;
-            match crate::config::CONF.args.color {
-                ColorWhen::Always => {
-                    $what $(. $fn())+ .to_string()
+            #[cfg(not(windows))]
+            {
+                use owo_colors::{OwoColorize, Stream};
+                use crate::config::args::ColorWhen;
+                match crate::config::CONF.args.color {
+                    ColorWhen::Always => {
+                        $what $(. $fn())+ .to_string()
+                    }
+                    ColorWhen::Automatic => {
+                        $what.if_supports_color(Stream::Stdout,
+                                                |txt| txt $(. $fn().to_string())+).to_string()
+                    }
+                    ColorWhen::Never => {
+                        $what.to_string()
+                    }
                 }
-                ColorWhen::Automatic => {
-                    // TODO: Colors don't seem to work on windows
-                    #[cfg(not(windows))]
-                    { $what.if_supports_color(Stream::Stdout,
-                                              |txt| txt $(. $fn().to_string())+).to_string() }
-                    #[cfg(windows)]
-                    $what.to_string()
-                }
-                ColorWhen::Never => {
-                    $what.to_string()
+            }
+            #[cfg(windows)]
+            {
+                use owo_colors::{OwoColorize};
+                use crate::config::args::ColorWhen;
+                match crate::config::CONF.args.color {
+                    ColorWhen::Always => {
+                        $what $(. $fn())+ .to_string()
+                    }
+                    ColorWhen::Automatic | ColorWhen::Never => {
+                        $what.to_string()
+                    }
                 }
             }
         }
