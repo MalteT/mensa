@@ -20,7 +20,7 @@
 //! - [X] List your favourite meals in canteens close to your location.
 //! - [X] JSON Output
 //!
-//! ![example](static/example-collection.png)
+//! ![example](https://raw.githubusercontent.com/MalteT/mensa/main/static/example-collection.png)
 //!
 //!
 //! ## Installation

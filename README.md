@@ -8,9 +8,6 @@
 CLI tool to query the menu of canteens contained in the
 [OpenMensa](https://openmensa.org) database.
 
-![example](https://user-images.githubusercontent.com/11077981/137278085-75ec877a-dba0-44bb-a8dc-6c802e24178c.png)
-
-
 ## Features
 
 - [X] Runs on Linux, macOS and Windows.
@@ -22,6 +19,8 @@ CLI tool to query the menu of canteens contained in the
       [date_time_parser](https://lib.rs/crates/date_time_parser).
 - [X] List your favourite meals in canteens close to your location.
 - [X] JSON Output
+
+![example](https://raw.githubusercontent.com/MalteT/mensa/main/static/example-collection.png)
 
 
 ## Installation
