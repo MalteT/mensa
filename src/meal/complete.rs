@@ -38,7 +38,7 @@ impl<'c> MealComplete<'c> {
     }
 
     fn print_name_to_terminal(&self, width: usize, highlight: bool) {
-        let max_name_width = width - NAME_PRE.width();
+        let max_name_width = width - NAME_PRE.width() - PRE.width();
         let mut name_parts = textwrap::wrap(&self.meta.name, max_name_width).into_iter();
         // There will always be a first part of the splitted string
         let first_name_part = name_parts.next().unwrap();
@@ -80,7 +80,7 @@ impl<'c> MealComplete<'c> {
     }
 
     fn print_descriptions(&self, width: usize, highlight: bool) {
-        let max_note_width = width - OTHER_NOTE_PRE.width();
+        let max_note_width = width - OTHER_NOTE_PRE.width() - PRE.width();
         for note in &self.meta.descs {
             let mut note_parts = textwrap::wrap(note, max_note_width).into_iter();
             // There will always be a first part in the splitted string
