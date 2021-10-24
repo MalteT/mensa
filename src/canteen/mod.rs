@@ -19,7 +19,7 @@ use crate::{
     geoip, get_sane_terminal_dimensions,
     meal::Meal,
     pagination::PaginatedList,
-    print_json, ENDPOINT, TTL_CANTEENS, TTL_MEALS,
+    print_json, OPEN_MENSA_API, TTL_CANTEENS, TTL_MEALS,
 };
 
 use self::ser::CanteenCompleteWithoutMeals;
@@ -62,7 +62,7 @@ pub struct Day {
 
 impl Meta {
     pub fn fetch(id: CanteenId) -> Result<Self> {
-        let url = format!("{}/canteens/{}", ENDPOINT, id);
+        let url = format!("{}/canteens/{}", OPEN_MENSA_API, id);
         fetch_json(url, *TTL_CANTEENS)
     }
 }
@@ -164,7 +164,7 @@ impl Canteen {
     fn fetch_for_geo(geo: &GeoCommand, all: bool) -> Result<Vec<Self>> {
         let url = if all {
             info!("Fetching all canteens");
-            format!("{}/canteens", ENDPOINT)
+            format!("{}/canteens", OPEN_MENSA_API)
         } else {
             let (lat, long) = geoip::infer()?;
             info!(
@@ -173,7 +173,7 @@ impl Canteen {
             );
             format!(
                 "{}/canteens?near[lat]={}&near[lng]={}&near[dist]={}",
-                ENDPOINT, lat, long, geo.radius,
+                OPEN_MENSA_API, lat, long, geo.radius,
             )
         };
         PaginatedList::new(url, *TTL_CANTEENS).consume()
@@ -181,7 +181,7 @@ impl Canteen {
 }
 
 fn fetch_dates_for_canteen(id: CanteenId) -> Result<HashMap<NaiveDate, Fetchable<Vec<Meal>>>> {
-    let url = format!("{}/canteens/{}/days", ENDPOINT, id,);
+    let url = format!("{}/canteens/{}/days", OPEN_MENSA_API, id,);
     let days: Vec<Day> = PaginatedList::new(url, *TTL_MEALS).consume()?;
     Ok(days
         .into_iter()
@@ -190,7 +190,7 @@ fn fetch_dates_for_canteen(id: CanteenId) -> Result<HashMap<NaiveDate, Fetchable
 }
 
 fn fetch_meals(id: CanteenId, date: &NaiveDate) -> Result<Vec<Meal>> {
-    let url = format!("{}/canteens/{}/days/{}/meals", ENDPOINT, id, date);
+    let url = format!("{}/canteens/{}/days/{}/meals", OPEN_MENSA_API, id, date);
     PaginatedList::new(url, *TTL_MEALS).consume()
 }
 

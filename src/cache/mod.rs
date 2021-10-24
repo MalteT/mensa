@@ -32,7 +32,7 @@ use cacache::Metadata;
 use chrono::{Duration, TimeZone};
 use lazy_static::lazy_static;
 use regex::Regex;
-use reqwest::{blocking::Response, IntoUrl, StatusCode};
+use reqwest::{blocking::Response, StatusCode, Url};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -81,9 +81,9 @@ enum CacheResult<T> {
 }
 
 /// Wrapper around [`fetch`] for responses that contain json.
-pub fn fetch_json<U, T>(url: U, local_ttl: Duration) -> Result<T>
+pub fn fetch_json<S, T>(url: S, local_ttl: Duration) -> Result<T>
 where
-    U: IntoUrl,
+    S: AsRef<str>,
     T: DeserializeOwned,
 {
     fetch(url, local_ttl, |text, _| {
@@ -93,14 +93,14 @@ where
 }
 
 /// Generic method for fetching remote url-based resources that may be cached.
-pub fn fetch<Map, U, T>(url: U, local_ttl: Duration, map: Map) -> Result<T>
+pub fn fetch<Map, S, T>(url: S, local_ttl: Duration, map: Map) -> Result<T>
 where
-    U: IntoUrl,
+    S: AsRef<str>,
     Map: FnOnce(String, Headers) -> Result<T>,
 {
     // Normalize the url at this point since we're using it
     // as the cache key
-    let url = url.into_url().map_err(Error::Reqwest)?;
+    let url = Url::parse(url.as_ref()).map_err(|_| Error::InternalUrlError)?;
     let url = url.as_ref();
     info!("Fetching {:?}", url);
     // Try getting the value from cache, if that fails, query the web

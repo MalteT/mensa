@@ -91,6 +91,9 @@ macro_rules! color {
     };
 }
 
+/// Conditionally select one of two expressions.
+///
+/// The former will be used unless the `--plain` flag is specified.
 macro_rules! if_plain {
     ($fancy:expr, $plain:expr) => {
         if crate::config::CONF.args.plain {
@@ -120,8 +123,7 @@ use crate::{
     tag::Tag,
 };
 
-const ENDPOINT: &str = "https://openmensa.org/api/v2";
-const MIN_TERM_WIDTH: usize = 20;
+const OPEN_MENSA_API: &str = "https://openmensa.org/api/v2";
 
 lazy_static! {
     static ref DIR: ProjectDirs =
@@ -164,6 +166,7 @@ fn real_main() -> Result<()> {
 }
 
 fn get_sane_terminal_dimensions() -> (usize, usize) {
+    const MIN_TERM_WIDTH: usize = 20;
     terminal_size::terminal_size()
         .map(|(w, h)| (w.0 as usize, h.0 as usize))
         .map(|(w, h)| (w.max(MIN_TERM_WIDTH), h))

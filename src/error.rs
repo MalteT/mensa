@@ -33,6 +33,8 @@ pub enum Error {
     DecodingUtf8(#[source] std::string::FromUtf8Error),
     #[error("invalid date encountered: {_0}")]
     InvalidDate(#[source] chrono::ParseError),
+    #[error("internal url parsing error. This is probably a bug")]
+    InternalUrlError,
 }
 
 pub trait ResultExt<T> {
