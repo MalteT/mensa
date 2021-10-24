@@ -100,7 +100,7 @@ where
 {
     // Normalize the url at this point since we're using it
     // as the cache key
-    let url = Url::parse(url.as_ref()).map_err(|_| Error::InternalUrlError)?;
+    let url = Url::parse(url.as_ref()).map_err(|_| Error::InternalUrl)?;
     let url = url.as_ref();
     info!("Fetching {:?}", url);
     // Try getting the value from cache, if that fails, query the web

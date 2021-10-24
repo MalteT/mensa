@@ -2,12 +2,14 @@
 //!
 //! [![tests](https://github.com/MalteT/mensa/actions/workflows/rust.yml/badge.svg)](https://github.com/MalteT/mensa/actions/workflows/rust.yml)
 //!
+//!
 //! # mensa
 //!
 //! CLI tool to query the menu of canteens contained in the
 //! [OpenMensa](https://openmensa.org) database.
 //!
 //! ![example](https://user-images.githubusercontent.com/11077981/137278085-75ec877a-dba0-44bb-a8dc-6c802e24178c.png)
+//!
 //!
 //! ## Features
 //!
@@ -18,12 +20,15 @@
 //! - [X] All request are cached locally.
 //! - [X] Fuzzy date parsing based on
 //!       [date_time_parser](https://lib.rs/crates/date_time_parser).
-//! - [ ] List your favourite meals in canteens close to your location.
+//! - [X] List your favourite meals in canteens close to your location.
+//! - [X] JSON Output
 //!
 //!
 //! ## Installation
 //!
 //! ### Cargo
+//!
+//! **Only nightly Rust supported at the moment**.
 //!
 //! ```console
 //! $ cargo install --git https://github.com/MalteT/mensa
@@ -50,7 +55,6 @@
 //! - `mensa canteens` lists canteens near you based on your current
 //!   IP in a default radius of 10km.
 //! - `mensa tags` will list the currently known meal tags like "**12** Nuts".
-//! - `mensa tomorrow` shortcut for `mensa meals -d tomorrow [...]`
 //!
 //!
 //! ## Configuration
