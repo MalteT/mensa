@@ -162,7 +162,7 @@ impl Prices {
         let price_tags = CONF.price_tags();
         let price_tags = if price_tags.is_empty() {
             // Print all of them
-            vec![self.students, self.employees, self.others]
+            vec![self.students, self.employees, self.pupils, self.others]
         } else {
             let mut values = vec![];
             if price_tags.contains(&PriceTags::Student) {
