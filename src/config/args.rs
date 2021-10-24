@@ -26,6 +26,7 @@ pub struct Args {
 
     /// Use ascii characters only.
     /// This does not prune non-ascii characters returned by the openmensa API.
+    #[cfg_attr(windows, doc = "Not available")]
     #[structopt(long, env = "MENSA_ASCII_ONLY", global = true, takes_value = false)]
     pub plain: bool,
 

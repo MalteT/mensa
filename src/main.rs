@@ -84,8 +84,12 @@ macro_rules! color {
                     $what $(. $fn())+ .to_string()
                 }
                 ColorWhen::Automatic => {
-                    $what.if_supports_color(Stream::Stdout,
-                                            |txt| txt $(. $fn().to_string())+).to_string()
+                    // TODO: Colors don't seem to work on windows
+                    #[cfg(not(windows))]
+                    { $what.if_supports_color(Stream::Stdout,
+                                              |txt| txt $(. $fn().to_string())+).to_string() }
+                    #[cfg(windows)]
+                    $what.to_string()
                 }
                 ColorWhen::Never => {
                     $what.to_string()
@@ -100,7 +104,7 @@ macro_rules! color {
 /// The former will be used unless the `--plain` flag is specified.
 macro_rules! if_plain {
     ($fancy:expr, $plain:expr) => {
-        if crate::config::CONF.args.plain {
+        if cfg!(windows) || crate::config::CONF.args.plain {
             $plain
         } else {
             $fancy
