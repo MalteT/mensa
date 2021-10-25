@@ -17,7 +17,7 @@ use super::PriceTags;
 #[structopt(author)]
 pub struct Args {
     /// Clear the cache before doing anything.
-    #[structopt(long)]
+    #[structopt(long, global = true)]
     pub clear_cache: bool,
 
     /// Path to the configuration file.
@@ -32,13 +32,13 @@ pub struct Args {
 
     /// When to use terminal colors.
     #[structopt(
-                long,
-                global = true,
-                value_name = "WHEN",
-                default_value = "Automatic",
-                possible_values = &ColorWhen::variants(),
-                case_insensitive = true
-                )]
+        long,
+        global = true,
+        value_name = "WHEN",
+        default_value = "Automatic",
+        possible_values = &ColorWhen::variants(),
+        case_insensitive = true
+    )]
     pub color: ColorWhen,
 
     /// Output json. Useful for shell scripts.
@@ -96,65 +96,96 @@ pub struct MealsCommand {
     /// Date for which to display information.
     ///
     /// Try values like `tomorrow`, `wed`, etc.
-    #[structopt(long, short,
-                env = "MENSA_DATE",
-                parse(try_from_str = parse_human_date),
-                default_value = "today",
-                global = true)]
+    #[structopt(
+        long, short,
+        global = true,
+        env = "MENSA_DATE",
+        parse(try_from_str = parse_human_date),
+        default_value = "today",
+        global = true
+    )]
     pub date: NaiveDate,
 
     /// Canteen ID for which to fetch meals.
-    #[structopt(long = "id", short = "i", env = "MENSA_ID")]
+    #[structopt(long = "id", global = true, short = "i", env = "MENSA_ID")]
     pub canteen_id: Option<usize>,
 
     /// Specify which price tags should be displayed
-    #[structopt(long,
-                short,
-                env = "MENSA_PRICES",
-                possible_values = &PriceTags::variants(),
-                case_insensitive = true)]
+    #[structopt(
+        long,
+        short,
+        global = true,
+        env = "MENSA_PRICES",
+        possible_values = &PriceTags::variants(),
+        case_insensitive = true
+    )]
     pub price: Option<Vec<PriceTags>>,
 
-    #[structopt(long, env = "MENSA_OVERWRITE_FILTER", takes_value = false)]
+    #[structopt(
+        long,
+        global = true,
+        env = "MENSA_OVERWRITE_FILTER",
+        takes_value = false
+    )]
     pub overwrite_filter: bool,
 
-    #[structopt(long, env = "MENSA_FILTER_NAME_ADD")]
+    #[structopt(long, global = true, env = "MENSA_FILTER_NAME_ADD")]
     pub filter_name: Vec<Regex>,
 
-    #[structopt(long, env = "MENSA_FILTER_NAME_SUB")]
+    #[structopt(long, global = true, env = "MENSA_FILTER_NAME_SUB")]
     pub no_filter_name: Vec<Regex>,
 
-    #[structopt(long, env = "MENSA_FILTER_TAG_ADD", parse(try_from_str = serde_plain::from_str))]
+    #[structopt(
+        long,
+        global = true,
+        env = "MENSA_FILTER_TAG_ADD",
+        parse(try_from_str = serde_plain::from_str)
+    )]
     pub filter_tag: Vec<Tag>,
 
-    #[structopt(long, env = "MENSA_FILTER_TAG_SUB", parse(try_from_str = serde_plain::from_str))]
+    #[structopt(
+        long,
+        global = true,
+        env = "MENSA_FILTER_TAG_SUB",
+        parse(try_from_str = serde_plain::from_str)
+    )]
     pub no_filter_tag: Vec<Tag>,
 
-    #[structopt(long, env = "MENSA_FILTER_CATEGORY_ADD")]
+    #[structopt(long, global = true, env = "MENSA_FILTER_CATEGORY_ADD")]
     pub filter_cat: Vec<Regex>,
 
-    #[structopt(long, env = "MENSA_FILTER_CATEGORY_SUB")]
+    #[structopt(long, global = true, env = "MENSA_FILTER_CATEGORY_SUB")]
     pub no_filter_cat: Vec<Regex>,
 
-    #[structopt(long, env = "MENSA_OVERWRITE_FAVS", takes_value = false)]
+    #[structopt(long, global = true, env = "MENSA_OVERWRITE_FAVS", takes_value = false)]
     pub overwrite_favs: bool,
 
-    #[structopt(long, env = "MENSA_FAVS_NAME_ADD")]
+    #[structopt(long, global = true, env = "MENSA_FAVS_NAME_ADD")]
     pub favs_name: Vec<Regex>,
 
-    #[structopt(long, env = "MENSA_FAVS_NAME_SUB")]
+    #[structopt(long, global = true, env = "MENSA_FAVS_NAME_SUB")]
     pub no_favs_name: Vec<Regex>,
 
-    #[structopt(long, env = "MENSA_FAVS_TAG_ADD", parse(try_from_str = serde_plain::from_str))]
+    #[structopt(
+        long,
+        global = true,
+        env = "MENSA_FAVS_TAG_ADD",
+        parse(try_from_str = serde_plain::from_str)
+    )]
     pub favs_tag: Vec<Tag>,
 
-    #[structopt(long, env = "MENSA_FAVS_TAG_SUB", parse(try_from_str = serde_plain::from_str))]
+    #[structopt(
+        long,
+        global = true,
+        env = "MENSA_FAVS_TAG_SUB",
+        parse(try_from_str = serde_plain::from_str)
+    )]
     pub no_favs_tag: Vec<Tag>,
 
-    #[structopt(long, env = "MENSA_FAVS_CATEGORY_ADD")]
+    #[structopt(long, global = true, env = "MENSA_FAVS_CATEGORY_ADD")]
     pub favs_cat: Vec<Regex>,
 
-    #[structopt(long, env = "MENSA_FAVS_CATEGORY_SUB")]
+    #[structopt(long, global = true, env = "MENSA_FAVS_CATEGORY_SUB")]
     pub no_favs_cat: Vec<Regex>,
 
     #[structopt(subcommand)]
