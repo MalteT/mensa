@@ -63,6 +63,7 @@
 //! - `$HOME/Library/Application Support/mensa/config.toml` on **macOS**,
 //! - `{FOLDERID_RoamingAppData}\mensa\config.toml` on **Windows**
 
+use cache::Cache;
 use chrono::Duration;
 use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
@@ -139,6 +140,7 @@ mod tag;
 // mod tests;
 
 use crate::{
+    cache::CACHE,
     canteen::Canteen,
     config::{args::Command, CONF},
     error::{Error, Result, ResultExt},
@@ -169,7 +171,7 @@ fn real_main() -> Result<()> {
     tracing_subscriber::fmt::init();
     // Clear cache if requested
     if CONF.args.clear_cache {
-        cache::clear()?;
+        CACHE.clear()?;
     }
     // Match over the user requested command
     match CONF.cmd() {

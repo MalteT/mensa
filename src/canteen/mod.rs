@@ -10,7 +10,7 @@ mod de;
 mod ser;
 
 use crate::{
-    cache::{fetch_json, Fetchable},
+    cache::{Cache, Fetchable, CACHE},
     config::{
         args::{CloseCommand, Command, GeoCommand},
         CONF,
@@ -63,7 +63,7 @@ pub struct Day {
 impl Meta {
     pub fn fetch(id: CanteenId) -> Result<Self> {
         let url = format!("{}/canteens/{}", OPEN_MENSA_API, id);
-        fetch_json(url, *TTL_CANTEENS)
+        CACHE.fetch_json(url, *TTL_CANTEENS)
     }
 }
 

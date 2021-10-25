@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 
 use crate::{
-    cache::fetch_json,
+    cache::{Cache, CACHE},
     config::{
         args::{CloseCommand, Command},
         CONF,
@@ -56,5 +56,5 @@ pub fn infer() -> Result<(f32, f32)> {
 /// Fetch geoip for current ip.
 fn fetch_geoip() -> Result<LatLong> {
     let url = "https://api.geoip.rs";
-    fetch_json(url, *TTL_GEOIP)
+    CACHE.fetch_json(url, *TTL_GEOIP)
 }

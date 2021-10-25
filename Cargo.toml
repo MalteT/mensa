@@ -37,6 +37,6 @@ serde_json = "1.0"
 itertools = "0.10"
 
 [dev-dependencies]
-temp-dir = "0.1"
 pretty_assertions = "1.0"
+ssri = "7.0"
 assert_cmd = "2.0"

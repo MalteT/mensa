@@ -990,9 +990,9 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_plain",
+ "ssri",
  "structopt",
  "strum",
- "temp-dir",
  "terminal_size",
  "textwrap 0.14.2",
  "thiserror",
@@ -1761,12 +1761,6 @@ dependencies = [
  "quote",
  "unicode-xid",
 ]
-
-[[package]]
-name = "temp-dir"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af547b166dd1ea4b472165569fc456cfb6818116f854690b0ff205e636523dab"
 
 [[package]]
 name = "tempfile"

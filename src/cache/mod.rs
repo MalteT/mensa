@@ -28,7 +28,7 @@
 //! - `fetch` functions are generalized over web requests and cache loading.
 //! - `get` functions only operate on requests.
 //! - `load`, `update` functions only operate on the cache.
-use cacache::Metadata;
+use ::cacache::Metadata;
 use chrono::{Duration, TimeZone};
 use lazy_static::lazy_static;
 use reqwest::{StatusCode, Url};
@@ -38,10 +38,18 @@ use tracing::{info, warn};
 mod fetchable;
 #[cfg(test)]
 mod tests;
-mod wrapper;
+
+#[cfg(not(test))]
+mod cacache;
+#[cfg(not(test))]
+use self::cacache::Cacache as DefaultCache;
+
+#[cfg(test)]
+mod dummy;
+#[cfg(test)]
+use self::dummy::DummyCache as DefaultCache;
 
 pub use fetchable::Fetchable;
-pub use wrapper::clear_cache as clear;
 
 use crate::{
     error::{Error, Result, ResultExt},
@@ -50,6 +58,10 @@ use crate::{
 
 /// Returned by most functions in this module.
 type TextAndHeaders = (String, Headers);
+
+lazy_static! {
+    pub static ref CACHE: DefaultCache = DefaultCache::init().expect("Initialized cache");
+}
 
 /// Possible results from a cache load.
 #[derive(Debug, PartialEq)]
@@ -62,77 +74,113 @@ enum CacheResult<T> {
     Hit(T),
 }
 
-/// Wrapper around [`fetch`] for responses that contain json.
-pub fn fetch_json<S, T>(url: S, local_ttl: Duration) -> Result<T>
+/// Cache trait
+///
+/// Generalized over the default Cacache and a DummyCache used for tests.
+pub trait Cache
 where
-    S: AsRef<str>,
-    T: DeserializeOwned,
+    Self: Sized,
 {
-    fetch(url, local_ttl, |text, _| {
-        // TODO: Check content header?
-        serde_json::from_str(&text).map_err(|why| Error::Deserializing(why, "fetching json"))
-    })
-}
+    /// Initialize the cache.
+    fn init() -> Result<Self>;
 
-/// Generic method for fetching remote url-based resources that may be cached.
-pub fn fetch<Map, S, T>(url: S, local_ttl: Duration, map: Map) -> Result<T>
-where
-    S: AsRef<str>,
-    Map: FnOnce(String, Headers) -> Result<T>,
-{
-    // Normalize the url at this point since we're using it
-    // as the cache key
-    let url = Url::parse(url.as_ref()).map_err(|_| Error::InternalUrl)?;
-    let url = url.as_ref();
-    info!("Fetching {:?}", url);
-    // Try getting the value from cache, if that fails, query the web
-    let (text, headers) = match try_load_cache(url, local_ttl) {
-        Ok(CacheResult::Hit(text_and_headers)) => {
-            info!("Hit cache on {:?}", url);
-            text_and_headers
-        }
-        Ok(CacheResult::Miss) => {
-            info!("Missed cache on {:?}", url);
-            get_and_update_cache(url, None, None)?
-        }
-        Ok(CacheResult::Stale(old_headers, meta)) => {
-            info!("Stale cache on {:?}", url);
-            // The cache is stale but may still be valid
-            // Request the resource with set IF_NONE_MATCH tag and update
-            // the caches metadata or value
-            match get_and_update_cache(url, old_headers.etag, Some(meta)) {
-                Ok(tah) => tah,
-                Err(why) => {
-                    warn!("{}", why);
-                    // Fetching and updating failed for some reason, retry
-                    // without the IF_NONE_MATCH tag and fail if unsuccessful
-                    get_and_update_cache(url, None, None)?
+    /// Read from the cache.
+    fn read(&self, meta: &Metadata) -> Result<String>;
+
+    /// Write to the cache.
+    ///
+    /// The `url` is used as key and the `text` as value for the entry.
+    /// The `headers` are attached as additional metadata.
+    fn write(&self, headers: &Headers, url: &str, text: &str) -> Result<()>;
+
+    /// Get the [`Metadata`] for the cache entry.
+    fn meta(&self, url: &str) -> Result<Option<Metadata>>;
+
+    /// Clear all entries from the cache.
+    fn clear(&self) -> Result<()>;
+
+    /// List all cache entries.
+    fn list(&self) -> Result<Vec<Metadata>>;
+
+    /// Wrapper around [`fetch`] for responses that contain json.
+    fn fetch_json<S, T>(&self, url: S, local_ttl: Duration) -> Result<T>
+    where
+        S: AsRef<str>,
+        T: DeserializeOwned,
+    {
+        self.fetch(url, local_ttl, |text, _| {
+            // TODO: Check content header?
+            serde_json::from_str(&text).map_err(|why| Error::Deserializing(why, "fetching json"))
+        })
+    }
+
+    /// Generic method for fetching remote url-based resources that may be cached.
+    ///
+    /// This is the preferred way to access the cache, as the requested value
+    /// will be fetched from the inter-webs if the cache misses.
+    fn fetch<Map, S, T>(&self, url: S, local_ttl: Duration, map: Map) -> Result<T>
+    where
+        S: AsRef<str>,
+        Map: FnOnce(String, Headers) -> Result<T>,
+    {
+        // Normalize the url at this point since we're using it
+        // as the cache key
+        let url = Url::parse(url.as_ref()).map_err(|_| Error::InternalUrl)?;
+        let url = url.as_ref();
+        info!("Fetching {:?}", url);
+        // Try getting the value from cache, if that fails, query the web
+        let (text, headers) = match try_load_cache(self, url, local_ttl) {
+            Ok(CacheResult::Hit(text_and_headers)) => {
+                info!("Hit cache on {:?}", url);
+                text_and_headers
+            }
+            Ok(CacheResult::Miss) => {
+                info!("Missed cache on {:?}", url);
+                get_and_update_cache(self, url, None, None)?
+            }
+            Ok(CacheResult::Stale(old_headers, meta)) => {
+                info!("Stale cache on {:?}", url);
+                // The cache is stale but may still be valid
+                // Request the resource with set IF_NONE_MATCH tag and update
+                // the caches metadata or value
+                match get_and_update_cache(self, url, old_headers.etag, Some(meta)) {
+                    Ok(tah) => tah,
+                    Err(why) => {
+                        warn!("{}", why);
+                        // Fetching and updating failed for some reason, retry
+                        // without the IF_NONE_MATCH tag and fail if unsuccessful
+                        get_and_update_cache(self, url, None, None)?
+                    }
                 }
             }
-        }
-        Err(why) => {
-            // Fetching from the cache failed for some reason, just
-            // request the resource and update the cache
-            warn!("{}", why);
-            get_and_update_cache(url, None, None)?
-        }
-    };
-    // Apply the map and return the result
-    map(text, headers)
+            Err(why) => {
+                // Fetching from the cache failed for some reason, just
+                // request the resource and update the cache
+                warn!("{}", why);
+                get_and_update_cache(self, url, None, None)?
+            }
+        };
+        // Apply the map and return the result
+        map(text, headers)
+    }
 }
 
 /// Try loading the cache content.
 ///
 /// This can fail due to errors, but also exits with a [`CacheResult`].
-fn try_load_cache(url: &str, local_ttl: Duration) -> Result<CacheResult<TextAndHeaders>> {
+fn try_load_cache<C: Cache>(
+    cache: &C,
+    url: &str,
+    local_ttl: Duration,
+) -> Result<CacheResult<TextAndHeaders>> {
     // Try reading the cache's metadata
-    match wrapper::read_cache_meta(url)? {
+    match cache.meta(url)? {
         Some(meta) => {
             // Metadata exists
             if is_fresh(&meta, &local_ttl) {
                 // Fresh, try to fetch from cache
-                let raw = wrapper::read_cache(&meta)?;
-                to_text_and_headers(raw, &meta.metadata).map(CacheResult::Hit)
+                let text = cache.read(&meta)?;
+                to_text_and_headers(text, &meta.metadata).map(CacheResult::Hit)
             } else {
                 // Local check failed, but the value may still be valid
                 let old_headers = headers_from_metadata(&meta)?;
@@ -152,7 +200,8 @@ fn try_load_cache(url: &str, local_ttl: Duration) -> Result<CacheResult<TextAndH
 ///
 /// If an optional `etag` is provided, add the If-None-Match header, and thus
 /// only get an update if the new ETAG differs from the given `etag`.
-fn get_and_update_cache(
+fn get_and_update_cache<C: Cache>(
+    cache: &C,
     url: &str,
     etag: Option<String>,
     meta: Option<Metadata>,
@@ -167,11 +216,11 @@ fn get_and_update_cache(
         Some(meta) if resp.status == StatusCode::NOT_MODIFIED => {
             // If we received code 304 NOT MODIFIED (after adding the If-None-Match)
             // our cache is actually fresh and it's timestamp should be updated
-            touch_and_load_cache(url, &meta, resp.headers)
+            touch_and_load_cache(cache, url, &meta, resp.headers)
         }
         _ if resp.status.is_success() => {
             // Request returned successfully, now update the cache with that
-            update_cache_from_response(resp)
+            update_cache_from_response(cache, resp)
         }
         _ => {
             // Some error occured, just error out
@@ -184,19 +233,24 @@ fn get_and_update_cache(
 /// Extract body and headers from response and update the cache.
 ///
 /// Only relevant headers will be kept.
-fn update_cache_from_response(resp: Response) -> Result<TextAndHeaders> {
+fn update_cache_from_response<C: Cache>(cache: &C, resp: Response) -> Result<TextAndHeaders> {
     let url = resp.url.to_owned();
-    wrapper::write_cache(&resp.headers, &url, &resp.body)?;
+    cache.write(&resp.headers, &url, &resp.body)?;
     Ok((resp.body, resp.headers))
 }
 
 /// Reset the cache's TTL, load and return it.
-fn touch_and_load_cache(url: &str, meta: &Metadata, headers: Headers) -> Result<TextAndHeaders> {
-    let raw = wrapper::read_cache(meta)?;
+fn touch_and_load_cache<C: Cache>(
+    cache: &C,
+    url: &str,
+    meta: &Metadata,
+    headers: Headers,
+) -> Result<TextAndHeaders> {
+    let raw = cache.read(meta)?;
     let (text, _) = to_text_and_headers(raw, &meta.metadata)?;
     // TODO: Update the timestamp in a smarter way..
     // Do not fall on errors, this doesn’t matter
-    wrapper::write_cache(&headers, url, &text).log_warn();
+    cache.write(&headers, url, &text).log_warn();
     Ok((text, headers))
 }
 
@@ -215,10 +269,9 @@ fn is_fresh(meta: &Metadata, local_ttl: &Duration) -> bool {
 }
 
 /// Helper to convert raw text and serialized json to [`TextAndHeaders`].
-fn to_text_and_headers(raw: Vec<u8>, meta: &serde_json::Value) -> Result<TextAndHeaders> {
-    let utf8 = String::from_utf8(raw).map_err(Error::DecodingUtf8)?;
+fn to_text_and_headers(text: String, meta: &serde_json::Value) -> Result<TextAndHeaders> {
     let headers: Headers = serde_json::from_value(meta.clone()).map_err(|why| {
         Error::Deserializing(why, "reading headers from cache. Try clearing the cache.")
     })?;
-    Ok((utf8, headers))
+    Ok((text, headers))
 }
