@@ -1,6 +1,6 @@
 use std::thread;
 
-use httpmock::{Method::GET, MockServer};
+use lazy_static::lazy_static;
 use pretty_assertions::assert_eq;
 
 use super::*;
@@ -33,39 +33,31 @@ fn test_cache_is_empty() {
 
 #[test]
 fn basic_caching() {
-    // === Setup ===
-    let server = MockServer::start();
-    server.mock(|when, then| {
-        when.method(GET).path("/test");
-        then.status(200)
-            .header("ETag", "static")
-            .body("This page works!");
-    });
-
+    let url = "http://invalid.local/test";
     // Cache is empty
-    let val = try_load_cache(&server.url("/test"), Duration::max_value()).unwrap();
+    let val = try_load_cache(url, Duration::max_value()).unwrap();
     print_cache_list("After first read");
     assert_eq!(val, CacheResult::Miss);
     // Populate the cache with the first request
-    let val = fetch(server.url("/test"), *TTL, |txt, _| Ok(txt)).unwrap();
-    assert_eq!(val, "This page works!",);
+    let val = fetch(url, *TTL, |txt, _| Ok(txt)).unwrap();
+    assert_eq!(val, "It works",);
     // The cache should now be hit
-    let val = try_load_cache(&server.url("/test"), Duration::max_value()).unwrap();
+    let val = try_load_cache(url, Duration::max_value()).unwrap();
     print_cache_list("After second read");
     assert_eq!(
         val,
         CacheResult::Hit((
-            "This page works!".into(),
+            "It works".into(),
             Headers {
                 etag: Some("static".into()),
-                this_page: None,
+                this_page: Some(1),
                 next_page: None,
-                last_page: None,
+                last_page: Some(1),
             }
         ))
     );
     // Let's fake a stale entry
     thread::sleep(std::time::Duration::from_secs(1));
-    let val = try_load_cache(&server.url("/test"), Duration::zero()).unwrap();
+    let val = try_load_cache(url, Duration::zero()).unwrap();
     assert!(matches!(val, CacheResult::Stale(_, _)));
 }

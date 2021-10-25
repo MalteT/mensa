@@ -133,6 +133,7 @@ mod error;
 mod geoip;
 mod meal;
 mod pagination;
+mod request;
 mod tag;
 // #[cfg(test)]
 // mod tests;

@@ -3,7 +3,6 @@
 //! To make testing easier.
 use cacache::Metadata;
 use lazy_static::lazy_static;
-use reqwest::blocking::{RequestBuilder, Response};
 use tracing::info;
 
 use std::{io::Write, path::Path};
@@ -40,10 +39,6 @@ pub fn read_cache_meta(url: &str) -> Result<Option<Metadata>> {
 
 pub fn clear_cache() -> Result<()> {
     cacache::clear_sync(cache()).map_err(|why| Error::Cache(why, "clearing"))
-}
-
-pub fn send_request(builder: RequestBuilder) -> Result<Response> {
-    builder.send().map_err(Error::Reqwest)
 }
 
 #[cfg(test)]

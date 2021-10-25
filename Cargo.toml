@@ -38,6 +38,5 @@ itertools = "0.10"
 
 [dev-dependencies]
 temp-dir = "0.1"
-httpmock = "0.6"
 pretty_assertions = "1.0"
 assert_cmd = "2.0"

@@ -1,10 +1,9 @@
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
-use reqwest::blocking::Client;
 use serde::Deserialize;
 use structopt::{clap::arg_enum, StructOpt};
 
-use std::{collections::HashSet, fs, path::Path, time::Duration as StdDuration};
+use std::{collections::HashSet, fs, path::Path};
 
 use crate::{
     canteen::CanteenId,
@@ -22,32 +21,22 @@ pub mod args;
 pub mod rule;
 
 lazy_static! {
-    pub static ref CONF: Config = Config::assemble().unwrap();
-    static ref REQUEST_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+    pub static ref CONF: Config = Config::assemble();
 }
 
 #[derive(Debug)]
 pub struct Config {
     pub config: Option<ConfigFile>,
-    pub client: Client,
     pub args: Args,
 }
 
 impl Config {
-    fn assemble() -> Result<Self> {
+    fn assemble() -> Self {
         let args = Args::from_args();
         let default_config_path = || DIR.config_dir().join("config.toml");
         let path = args.config.clone().unwrap_or_else(default_config_path);
         let config = ConfigFile::load_or_log(path);
-        let client = Client::builder()
-            .timeout(*REQUEST_TIMEOUT)
-            .build()
-            .map_err(Error::Reqwest)?;
-        Ok(Config {
-            config,
-            client,
-            args,
-        })
+        Config { config, args }
     }
 
     /// Easy reference to the Command

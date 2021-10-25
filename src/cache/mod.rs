@@ -31,9 +31,8 @@
 use cacache::Metadata;
 use chrono::{Duration, TimeZone};
 use lazy_static::lazy_static;
-use regex::Regex;
-use reqwest::{blocking::Response, StatusCode, Url};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use reqwest::{StatusCode, Url};
+use serde::de::DeserializeOwned;
 use tracing::{info, warn};
 
 mod fetchable;
@@ -45,29 +44,12 @@ pub use fetchable::Fetchable;
 pub use wrapper::clear_cache as clear;
 
 use crate::{
-    config::CONF,
     error::{Error, Result, ResultExt},
+    request::{Api, DefaultApi, Headers, Response},
 };
 
 /// Returned by most functions in this module.
 type TextAndHeaders = (String, Headers);
-
-lazy_static! {
-    /// Regex to find the next page in a link header
-    /// Probably only applicable to the current version of the openmensa API.
-    // TODO: Improve this. How do these LINK headers look in general?
-    static ref LINK_NEXT_PAGE_RE: Regex = Regex::new(r#"<([^>]*)>; rel="next""#).unwrap();
-}
-
-/// Assortment of headers relevant to the program.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub struct Headers {
-    pub etag: Option<String>,
-    pub this_page: Option<usize>,
-    pub next_page: Option<String>,
-    pub last_page: Option<usize>,
-}
 
 /// Possible results from a cache load.
 #[derive(Debug, PartialEq)]
@@ -175,32 +157,26 @@ fn get_and_update_cache(
     etag: Option<String>,
     meta: Option<Metadata>,
 ) -> Result<TextAndHeaders> {
-    // Construct the request
-    let mut builder = CONF.client.get(url);
-    // Add If-None-Match header, if etag is present
-    if let Some(etag) = etag {
-        let etag_key = reqwest::header::IF_NONE_MATCH;
-        builder = builder.header(etag_key, etag);
+    lazy_static! {
+        static ref API: DefaultApi = DefaultApi::create().expect("Failed to create API");
     }
-    let resp = wrapper::send_request(builder)?;
-    let status = resp.status();
-    info!("Request to {:?} returned {}", url, status);
+    // Send request with optional ETag header
+    let resp = API.get(url, etag)?;
+    info!("Request to {:?} returned {}", url, resp.status);
     match meta {
-        Some(meta) if status == StatusCode::NOT_MODIFIED => {
+        Some(meta) if resp.status == StatusCode::NOT_MODIFIED => {
             // If we received code 304 NOT MODIFIED (after adding the If-None-Match)
             // our cache is actually fresh and it's timestamp should be updated
-            let headers = resp.headers().clone().into();
-            // Just verified, that meta can be unwrapped!
-            touch_and_load_cache(url, &meta, headers)
+            touch_and_load_cache(url, &meta, resp.headers)
         }
-        _ if status.is_success() => {
+        _ if resp.status.is_success() => {
             // Request returned successfully, now update the cache with that
             update_cache_from_response(resp)
         }
         _ => {
             // Some error occured, just error out
             // TODO: Retrying would be an option
-            Err(Error::NonSuccessStatusCode(url.to_string(), resp.status()))
+            Err(Error::NonSuccessStatusCode(url.to_string(), resp.status))
         }
     }
 }
@@ -209,11 +185,9 @@ fn get_and_update_cache(
 ///
 /// Only relevant headers will be kept.
 fn update_cache_from_response(resp: Response) -> Result<TextAndHeaders> {
-    let headers: Headers = resp.headers().clone().into();
-    let url = resp.url().as_str().to_owned();
-    let text = resp.text().map_err(Error::Reqwest)?;
-    wrapper::write_cache(&headers, &url, &text)?;
-    Ok((text, headers))
+    let url = resp.url.to_owned();
+    wrapper::write_cache(&resp.headers, &url, &resp.body)?;
+    Ok((resp.body, resp.headers))
 }
 
 /// Reset the cache's TTL, load and return it.
@@ -247,45 +221,4 @@ fn to_text_and_headers(raw: Vec<u8>, meta: &serde_json::Value) -> Result<TextAnd
         Error::Deserializing(why, "reading headers from cache. Try clearing the cache.")
     })?;
     Ok((utf8, headers))
-}
-
-impl From<reqwest::header::HeaderMap> for Headers {
-    fn from(map: reqwest::header::HeaderMap) -> Self {
-        use reqwest::header::*;
-        let etag = map
-            .get(ETAG)
-            .map(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                Some(utf8.to_string())
-            })
-            .flatten();
-        let this_page = map
-            .get("x-current-page")
-            .map(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                utf8.parse().ok()
-            })
-            .flatten();
-        let next_page = map
-            .get(LINK)
-            .map(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                let captures = LINK_NEXT_PAGE_RE.captures(utf8)?;
-                Some(captures[1].to_owned())
-            })
-            .flatten();
-        let last_page = map
-            .get("x-total-pages")
-            .map(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                utf8.parse().ok()
-            })
-            .flatten();
-        Self {
-            etag,
-            this_page,
-            last_page,
-            next_page,
-        }
-    }
 }
