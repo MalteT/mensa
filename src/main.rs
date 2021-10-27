@@ -155,6 +155,7 @@ use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
 use serde::Serialize;
 use tracing::{error, info};
+use tracing_subscriber::EnvFilter;
 
 /// Colorizes the output.
 ///
@@ -272,6 +273,7 @@ fn real_main() -> Result<()> {
     // Initialize logger
     tracing_subscriber::FmtSubscriber::builder()
         .with_writer(::std::io::stderr)
+        .with_env_filter(EnvFilter::from_default_env())
         .init();
     // Clear cache if requested
     if CONF.args.clear_cache {
