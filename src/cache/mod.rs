@@ -103,7 +103,7 @@ where
     /// List all cache entries.
     fn list(&self) -> Result<Vec<Metadata>>;
 
-    /// Wrapper around [`fetch`] for responses that contain json.
+    /// Wrapper around [`Cache::fetch`] for responses that contain json.
     fn fetch_json<S, T>(&self, url: S, local_ttl: Duration) -> Result<T>
     where
         S: AsRef<str>,

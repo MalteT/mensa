@@ -55,8 +55,92 @@ See `mensa --help`.
   IP in a default radius of 10km.
 - `mensa tags` will list the currently known meal tags like "**12** Nuts".
 
+### Examples
 
-## Configuration
+####
+<details>
+  <summary><b>Meals on monday</b> (<i>Click me!</i>)</summary>
+
+  You can omit the `-i/--id` if you've configured a default id in the config.toml.
+
+  ```console
+  $ mensa meals -d mon -i 63
+
+   Leipzig, Mensa am Park
+   ┊
+   ┊ ╭───╴Bohnengemüse
+   ┊ ├─╴Gemüsebeilage 🌱
+   ┊ ╰╴( 0.55€ )
+   ...
+  ```
+</details>
+
+<details>
+  <summary><b>Canteens near your location</b> (<i>Click me!</i>)</summary>
+
+  ```console
+  $ mensa canteens
+
+  70 Leipzig, Cafeteria Dittrichring
+     Dittrichring 21, 04109 Leipzig
+
+  63 Leipzig, Mensa am Park
+     Universitätsstraße 5, 04109 Leipzig
+  ...
+  ```
+</details>
+
+<details>
+  <summary><b>All currently known tags</b> (<i>Click me!</i>)</summary>
+
+  ```console
+  $ mensa tags
+
+     0 Acidifier
+       Contains artificial acidifier
+
+     1 Alcohol
+       Contains alcohol
+
+     2 Antioxidant
+       Contains an antioxidant
+    ...
+  ```
+</details>
+
+<details>
+  <summary><b>Meals of canteens close to your location next sunday</b> (<i>Click me!</i>)</summary>
+
+  ```console
+  $ mensa meals close --date sun
+
+   Leipzig, Cafeteria Dittrichring
+   ┊
+   ┊ ╭───╴Vegetarisch gefüllte Zucchini
+   ┊ ├─╴Vegetarisches Gericht 🧀
+   ┊ ├╴Rucola-Kartoffelpüree
+   ┊ ├╴Tomaten-Ratatouille-Soße
+   ┊ ╰╴( 2.65€ )  2 11 12 19
+
+   Leipzig, Mensa am Park
+   ┊
+   ┊ ╭───╴Apfelrotkohl
+   ┊ ├─╴Gemüsebeilage 🌱
+   ┊ ╰╴( 0.55€ )  2
+   ...
+  ```
+</details>
+
+<details>
+  <summary><b>Count OpenMensa's canteens</b> (<i>Click me!</i>)</summary>
+
+  ```console
+  $ mensa canteens --all --json | jq '.[].id' | wc -l
+  704
+  ```
+</details>
+
+## Configuration *(Optional)*
 
 See [config.toml](config.toml) for an example. Copy the file to:
 - `$XDG_CONFIG_DIR/mensa/config.toml` on **Linux**,

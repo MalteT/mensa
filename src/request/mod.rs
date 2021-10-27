@@ -23,7 +23,7 @@ pub struct Headers {
     pub last_page: Option<usize>,
 }
 
-/// A subset of a Response, derived from [`reqwest::Response`].
+/// A subset of a Response, derived from [`::reqwest::Response`].
 pub struct Response<'url> {
     pub url: &'url str,
     pub status: StatusCode,
