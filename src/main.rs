@@ -307,6 +307,15 @@ fn get_sane_terminal_dimensions() -> (usize, usize) {
 fn print_json<T: Serialize>(value: &T) -> Result<()> {
     let stdout = std::io::stdout();
     let output = stdout.lock();
-    serde_json::to_writer_pretty(output, value)
-        .map_err(|why| Error::Serializing(why, "writing meals as json"))
+    let res = serde_json::to_writer_pretty(output, value);
+    // This is done to catch broken pipe errors
+    match res {
+        Err(why) if why.is_io() => {
+            // Propagate as simple io error.
+            // BrokenPipe errors are catched in main
+            Err(Error::Io(why.into(), "serializing json"))
+        }
+        Err(other) => Err(Error::Serializing(other, "writing meals as json")),
+        Ok(()) => Ok(()),
+    }
 }
