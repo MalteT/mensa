@@ -56,7 +56,26 @@ impl Api for DummyApi {
 }
 
 impl DummyApi {
-    pub fn register(
+    /// Register a single page.
+    pub fn register_single(&self, url: &str, value: &str, etag: Option<&str>) {
+        self.register(url, value, etag, Some(1), None, Some(1))
+    }
+
+    /// Register multiple subsequent pages.
+    ///
+    /// `pages` maps urls to pairs of values and optional etags.
+    pub fn register_pages(&self, pages: &[(&str, &str, Option<&str>)]) {
+        let mut page = 1;
+        let last_page = pages.len();
+        let mut pages = pages.iter().peekable();
+        while let Some((url, value, etag)) = pages.next() {
+            let next = pages.peek().map(|(url, _, _)| *url);
+            self.register(url, value, *etag, Some(page), next, Some(last_page));
+            page += 1;
+        }
+    }
+
+    fn register(
         &self,
         url: &str,
         value: &str,

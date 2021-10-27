@@ -46,10 +46,10 @@ pub struct Meta {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(debug, serde(deny_unknown_fields))]
 pub struct Prices {
-    students: Option<f32>,
-    employees: Option<f32>,
-    pupils: Option<f32>,
-    others: Option<f32>,
+    pub students: Option<f32>,
+    pub employees: Option<f32>,
+    pub pupils: Option<f32>,
+    pub others: Option<f32>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
