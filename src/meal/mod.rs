@@ -103,7 +103,7 @@ impl Meal {
                     for meal in meals {
                         let complete = meal.complete()?;
                         if filter.is_match(&complete) {
-                            let is_fav = favs.is_match(&complete);
+                            let is_fav = favs.is_non_empty_match(&complete);
                             println!("{}", *PRE);
                             complete.print(is_fav);
                             printed_at_least_one_meal = true;

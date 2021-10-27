@@ -54,6 +54,10 @@ impl Rule {
         (all_adds_empty || any_add) && !any_sub
     }
 
+    pub fn is_non_empty_match(&self, meal: &MealComplete) -> bool {
+        !self.is_empty() && self.is_match(meal)
+    }
+
     pub fn joined(self, other: Self) -> Self {
         Self {
             name: self.name.joined(other.name),
@@ -61,9 +65,17 @@ impl Rule {
             category: self.category.joined(other.category),
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.name.is_empty() && self.tag.is_empty() && self.category.is_empty()
+    }
 }
 
 impl TagRule {
+    pub fn is_empty(&self) -> bool {
+        self.add.is_empty() && self.sub.is_empty()
+    }
+
     fn is_match_add(&self, meal: &MealComplete) -> bool {
         self.add.iter().any(|tag| meal.meta.tags.contains(tag))
     }
@@ -99,6 +111,10 @@ impl RegexRule {
             Some(RegexSet::new(&sub).unwrap())
         };
         Self { add, sub }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.add.is_none() && self.sub.is_none()
     }
 
     fn is_match_add(&self, meal: &MealComplete) -> bool {
