@@ -27,14 +27,14 @@ lazy_static! {
     static ref PRE: String = color!(if_plain!(" ┊", " |"); bright_black);
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(from = "de::Meal")]
 pub struct Meal {
     pub id: MealId,
     pub meta: Fetchable<Meta>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
     pub name: String,
     pub tags: HashSet<Tag>,
@@ -43,7 +43,7 @@ pub struct Meta {
     pub category: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(debug, serde(deny_unknown_fields))]
 pub struct Prices {
     students: Option<f32>,

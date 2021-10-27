@@ -8,6 +8,8 @@ use tracing::info;
 
 mod de;
 mod ser;
+#[cfg(test)]
+mod tests;
 
 use crate::{
     cache::{Cache, Fetchable, CACHE},
@@ -32,7 +34,7 @@ lazy_static! {
     static ref EMPTY: Vec<Meal> = Vec::new();
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(from = "de::CanteenDeserialized")]
 pub struct Canteen {
     id: CanteenId,
@@ -44,7 +46,7 @@ pub struct Canteen {
     meals: Fetchable<HashMap<NaiveDate, Fetchable<Vec<Meal>>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Meta {
     name: String,
     city: String,

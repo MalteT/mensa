@@ -61,6 +61,7 @@ type TextAndHeaders = (String, Headers);
 
 lazy_static! {
     pub static ref CACHE: DefaultCache = DefaultCache::init().expect("Initialized cache");
+    pub static ref API: DefaultApi = DefaultApi::create().expect("Failed to create API");
 }
 
 /// Possible results from a cache load.
@@ -206,9 +207,6 @@ fn get_and_update_cache<C: Cache>(
     etag: Option<String>,
     meta: Option<Metadata>,
 ) -> Result<TextAndHeaders> {
-    lazy_static! {
-        static ref API: DefaultApi = DefaultApi::create().expect("Failed to create API");
-    }
     // Send request with optional ETag header
     let resp = API.get(url, etag)?;
     info!("Request to {:?} returned {}", url, resp.status);

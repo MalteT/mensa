@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::RwLock};
 
 use cacache::Metadata;
-use ssri::{Hash, Integrity};
+use ssri::Integrity;
 
 use super::Cache;
 
@@ -10,6 +10,7 @@ use crate::{
     request::Headers,
 };
 
+#[derive(Debug)]
 struct Entry {
     meta: Metadata,
     text: String,
@@ -19,7 +20,9 @@ pub struct DummyCache {
     /// The real, cacache-based implementation takes only immutable references
     /// and the API is adopted to handle that. Thus we'll have to do our
     /// own interior mutability here.
-    content: RwLock<BTreeMap<Hash, Entry>>,
+    ///
+    /// This maps paths to entries.
+    content: RwLock<BTreeMap<String, Entry>>,
 }
 
 impl Cache for DummyCache {
@@ -30,18 +33,21 @@ impl Cache for DummyCache {
     }
 
     fn read(&self, meta: &Metadata) -> Result<String> {
-        let (algorithm, digest) = meta.integrity.to_hex();
-        let hash = Hash { algorithm, digest };
+        let path = path_from_integrity(&meta.integrity);
         let read = self.content.read().expect("Reading cache failed");
         let entry = read
-            .get(&hash)
+            .get(&path)
             .expect("BUG: Metadata exists, but entry does not!");
+        eprintln!(
+            "Cache read for {:?}\n-> Returning: {:#?}",
+            meta.integrity, entry.text
+        );
         Ok(entry.text.clone())
     }
 
     fn write(&self, headers: &Headers, url: &str, text: &str) -> Result<()> {
         let mut write = self.content.write().expect("Writing cache failed");
-        let hash = hash_from_key(url);
+        let hash = path_from_key(url);
         let meta = assemble_meta(headers, url, text)?;
         write.insert(
             hash,
@@ -50,17 +56,19 @@ impl Cache for DummyCache {
                 text: text.to_owned(),
             },
         );
+        eprintln!(
+            "Cache write to {:?}\n-> Headers: {:#?}\n-> Content: {:#?}",
+            url, headers, text
+        );
         Ok(())
     }
 
     fn meta(&self, url: &str) -> Result<Option<Metadata>> {
-        let hash = hash_from_key(url);
-        match self
-            .content
-            .read()
-            .expect("Reading cache failed")
-            .get(&hash)
-        {
+        let hash = path_from_key(url);
+        let read = self.content.read().expect("Reading cache failed");
+        let entry = read.get(&hash);
+        eprintln!("Cache Metadata for {:?}: {:?}", url, entry);
+        match entry {
             Some(entry) => Ok(Some(clone_metadata(&entry.meta))),
             None => Ok(None),
         }
@@ -68,6 +76,7 @@ impl Cache for DummyCache {
 
     fn clear(&self) -> Result<()> {
         self.content.write().expect("Writing cache failed").clear();
+        eprintln!("Cache cleared");
         Ok(())
     }
 
@@ -81,14 +90,20 @@ impl Cache for DummyCache {
     }
 }
 
-fn hash_from_key(key: &str) -> Hash {
+fn path_from_key(key: &str) -> String {
     let integrity = Integrity::from(key);
-    hash_from_integrity(&integrity)
+    let path = path_from_integrity(&integrity);
+    eprintln!("Hashing key {:?} -> {:#?}", key, path);
+    path
 }
 
-fn hash_from_integrity(integrity: &Integrity) -> Hash {
+fn path_from_integrity(integrity: &Integrity) -> String {
+    let mut path = String::new();
     let (algorithm, digest) = integrity.to_hex();
-    Hash { algorithm, digest }
+    path += &algorithm.to_string();
+    path += &digest;
+    eprintln!("Hashing integrity {:?} -> {:#?}", integrity, path);
+    path
 }
 
 fn clone_metadata(meta: &Metadata) -> Metadata {

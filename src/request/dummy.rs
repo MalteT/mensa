@@ -1,47 +1,92 @@
 //! This contains the [`DummyApi`] used for testing purposes.
+use std::{collections::HashMap, sync::RwLock};
+
 use reqwest::StatusCode;
 
 use crate::error::Result;
 
 use super::{Api, Headers, Response};
 
+#[derive(Debug, Clone)]
+struct KnownResp {
+    etag: Option<String>,
+    value: String,
+    this_page: Option<usize>,
+    next_page: Option<String>,
+    last_page: Option<usize>,
+}
+
 /// A dummy API, serving local, deterministic Responses
 #[derive(Debug)]
-pub struct DummyApi;
+pub struct DummyApi {
+    known: RwLock<HashMap<String, KnownResp>>,
+}
 
 impl Api for DummyApi {
     fn create() -> Result<Self> {
-        Ok(DummyApi)
+        Ok(DummyApi {
+            known: RwLock::new(HashMap::new()),
+        })
     }
 
     fn get<'url, S>(&self, url: &'url str, etag: Option<S>) -> Result<Response<'url>>
     where
         S: AsRef<str>,
     {
-        if url == "http://invalid.local/test" {
-            get_test_page(etag)
-        } else {
-            panic!("BUG: Invalid url in dummy api: {:?}", url)
+        let read = self.known.read().expect("Reading known urls failed");
+        let etag = etag.map(|etag| etag.as_ref().to_owned());
+        match read.get(url) {
+            Some(resp) => {
+                let resp = resp.clone();
+                Ok(Response {
+                    url,
+                    status: status_from_etags(&resp.etag, &etag),
+                    headers: Headers {
+                        etag: resp.etag,
+                        this_page: resp.this_page,
+                        next_page: resp.next_page,
+                        last_page: resp.last_page,
+                    },
+                    body: resp.value,
+                })
+            }
+            None => panic!("BUG: Invalid url in dummy api: {:?}", url),
         }
     }
 }
 
-/// GET http://invalid.local/test
-fn get_test_page<S: AsRef<str>>(etag: Option<S>) -> Result<Response<'static>> {
-    let etag = etag.map(|etag| etag.as_ref().to_owned());
-    Ok(Response {
-        url: "http://invalid.local/test",
-        status: if etag == Some("static".into()) {
-            StatusCode::NOT_MODIFIED
-        } else {
-            StatusCode::OK
-        },
-        headers: Headers {
-            etag: Some("static".into()),
-            this_page: Some(1),
-            next_page: None,
-            last_page: Some(1),
-        },
-        body: "It works".to_owned(),
-    })
+impl DummyApi {
+    pub fn register(
+        &self,
+        url: &str,
+        value: &str,
+        etag: Option<&str>,
+        this_page: Option<usize>,
+        next_page: Option<&str>,
+        last_page: Option<usize>,
+    ) {
+        let mut write = self.known.write().expect("Writing known urls failed");
+        let etag = etag.map(str::to_owned);
+        let next_page = next_page.map(str::to_owned);
+        let old = write.insert(
+            url.to_owned(),
+            KnownResp {
+                etag,
+                value: value.to_owned(),
+                this_page,
+                next_page,
+                last_page,
+            },
+        );
+        if old.is_some() {
+            panic!("Adress {:?} already registered!", url);
+        }
+    }
+}
+
+fn status_from_etags(old: &Option<String>, new: &Option<String>) -> StatusCode {
+    match (old, new) {
+        (Some(old), Some(new)) if old == new => StatusCode::NOT_MODIFIED,
+        _ => StatusCode::OK,
+    }
 }

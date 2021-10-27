@@ -136,8 +136,6 @@ mod meal;
 mod pagination;
 mod request;
 mod tag;
-// #[cfg(test)]
-// mod tests;
 
 use crate::{
     cache::CACHE,

@@ -33,6 +33,7 @@ fn test_cache_is_empty() {
 #[test]
 fn basic_caching() {
     let url = "http://invalid.local/test";
+    API.register(url, "It works", Some("static"), Some(1), None, Some(1));
     // Cache is empty
     let val = try_load_cache(&*CACHE, url, Duration::max_value()).unwrap();
     print_cache_list("After first read").unwrap();
@@ -41,7 +42,7 @@ fn basic_caching() {
     let val = CACHE.fetch(url, *TTL, |txt, _| Ok(txt)).unwrap();
     assert_eq!(val, "It works",);
     // The cache should now be hit
-    let val = try_load_cache(&*CACHE, url, Duration::max_value()).unwrap();
+    let val = dbg!(try_load_cache(&*CACHE, url, Duration::max_value()).unwrap());
     print_cache_list("After second read").unwrap();
     assert_eq!(
         val,
