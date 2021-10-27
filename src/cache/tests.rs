@@ -14,7 +14,7 @@ fn print_cache_list(header: &'static str) -> Result<()> {
     CACHE.list()?.iter().for_each(|meta| {
         let age_ms = meta.time;
         let cache_age = chrono::Utc.timestamp((age_ms / 1000) as i64, (age_ms % 1000) as u32);
-        eprintln!(
+        println!(
             "| - {}\n|   SIZE: {}\n|   AGE: {}",
             meta.key, meta.size, cache_age
         )

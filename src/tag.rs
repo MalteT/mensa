@@ -212,7 +212,7 @@ impl Tag {
     /// Print this tag.
     ///
     /// Does **not** respect `--json`, use [`Self::print_all`].
-    pub fn print(&self) {
+    pub fn print(&self) -> Result<()> {
         let emoji = if CONF.args.plain && self.is_primary() {
             format!("{:>width$}", "-", width = ID_WIDTH)
         } else {
@@ -231,12 +231,12 @@ impl Tag {
                 .initial_indent(TEXT_INDENT)
                 .subsequent_indent(TEXT_INDENT),
         );
-        println!(
+        try_println!(
             "{} {}\n{}",
             color!(emoji; bright_yellow, bold),
             color!(self; bold),
             color!(description; bright_black),
-        );
+        )
     }
 
     /// Print all tags.
@@ -245,8 +245,8 @@ impl Tag {
             Self::print_all_json()
         } else {
             for tag in Tag::iter() {
-                println!();
-                tag.print();
+                try_println!()?;
+                tag.print()?;
             }
             Ok(())
         }

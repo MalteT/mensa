@@ -96,7 +96,7 @@ impl Meal {
         let day = CONF.date();
         for canteen in canteens {
             let name = canteen.name()?;
-            println!("\n {}", color!(name; bright_black));
+            try_println!("\n {}", color!(name; bright_black))?;
             match canteen.meals_at_mut(day)? {
                 Some(meals) => {
                     let mut printed_at_least_one_meal = false;
@@ -104,18 +104,16 @@ impl Meal {
                         let complete = meal.complete()?;
                         if filter.is_match(&complete) {
                             let is_fav = favs.is_non_empty_match(&complete);
-                            println!("{}", *PRE);
-                            complete.print(is_fav);
+                            try_println!("{}", *PRE)?;
+                            complete.print(is_fav)?;
                             printed_at_least_one_meal = true;
                         }
                     }
                     if !printed_at_least_one_meal {
-                        println!("{} {}", *PRE, color!("no matching meals found"; dimmed));
+                        try_println!("{} {}", *PRE, color!("no matching meals found"; dimmed))?
                     }
                 }
-                None => {
-                    println!("{} {}", *PRE, color!("closed"; dimmed))
-                }
+                None => try_println!("{} {}", *PRE, color!("closed"; dimmed))?,
             }
         }
         Ok(())

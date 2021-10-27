@@ -9,7 +9,7 @@
 # If omitted, `$XDG_CONFIG_HOME/mensa/config.toml` or
 #             `$HOME/.config/mensa/config.toml` (if $XDG_CONFIG_HOME is unset)
 # are checked.
-# 
+#
 # All options can also be specified on the command line or in the environment
 #  1) CLI flags take precedence over
 #  2) ENVIRONMENT VARIABLES, which overwrite

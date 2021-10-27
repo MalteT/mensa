@@ -57,7 +57,7 @@
 //!
 //! ### Examples
 //!
-//! #### 
+//! ####
 //! <details>
 //!   <summary><b>Meals on monday</b> (<i>Click me!</i>)</summary>
 //!
@@ -70,7 +70,7 @@
 //!    ┊
 //!    ┊ ╭───╴Bohnengemüse
 //!    ┊ ├─╴Gemüsebeilage 🌱
-//!    ┊ ╰╴( 0.55€ )  
+//!    ┊ ╰╴( 0.55€ )
 //!    ...
 //!   ```
 //! </details>
@@ -95,13 +95,13 @@
 //!
 //!   ```console
 //!   $ mensa tags
-//!   
+//!
 //!      0 Acidifier
 //!        Contains artificial acidifier
-//!   
+//!
 //!      1 Alcohol
 //!        Contains alcohol
-//!   
+//!
 //!      2 Antioxidant
 //!        Contains an antioxidant
 //!     ...
@@ -113,7 +113,7 @@
 //!
 //!   ```console
 //!   $ mensa meals close --date sun
-//!   
+//!
 //!    Leipzig, Cafeteria Dittrichring
 //!    ┊
 //!    ┊ ╭───╴Vegetarisch gefüllte Zucchini
@@ -121,7 +121,7 @@
 //!    ┊ ├╴Rucola-Kartoffelpüree
 //!    ┊ ├╴Tomaten-Ratatouille-Soße
 //!    ┊ ╰╴( 2.65€ )  2 11 12 19
-//!   
+//!
 //!    Leipzig, Mensa am Park
 //!    ┊
 //!    ┊ ╭───╴Apfelrotkohl
@@ -147,12 +147,14 @@
 //! - `$HOME/Library/Application Support/mensa/config.toml` on **macOS**,
 //! - `{FOLDERID_RoamingAppData}\mensa\config.toml` on **Windows**
 
+use std::io;
+
 use cache::Cache;
 use chrono::Duration;
 use directories_next::ProjectDirs;
 use lazy_static::lazy_static;
 use serde::Serialize;
-use tracing::error;
+use tracing::{error, info};
 
 /// Colorizes the output.
 ///
@@ -211,6 +213,18 @@ macro_rules! if_plain {
     };
 }
 
+/// Safer `println` which doesn't panic, but errors.
+macro_rules! try_println {
+    () => {
+        try_println!("\n")
+    };
+    ($str:literal $(, $args:expr )* $(,)?) => ({
+        use std::io::Write;
+        writeln!(::std::io::stdout(), $str, $( $args ),* )
+            .map_err(|why| crate::error::Error::Io(why, "printing"))
+    })
+}
+
 mod cache;
 mod canteen;
 mod config;
@@ -240,17 +254,25 @@ lazy_static! {
 }
 
 fn main() -> Result<()> {
-    let res = real_main();
-    match res {
-        Ok(_) => {}
-        Err(ref why) => error!("{}", why),
+    match real_main() {
+        Ok(_) => Ok(()),
+        // Ignore broken pipe errors, but log them
+        Err(Error::Io(err, _)) if err.kind() == io::ErrorKind::BrokenPipe => {
+            info!("Pipe was closed");
+            Ok(())
+        }
+        Err(why) => {
+            error!("{}", why);
+            Err(why)
+        }
     }
-    res
 }
 
 fn real_main() -> Result<()> {
     // Initialize logger
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::FmtSubscriber::builder()
+        .with_writer(::std::io::stderr)
+        .init();
     // Clear cache if requested
     if CONF.args.clear_cache {
         CACHE.clear()?;

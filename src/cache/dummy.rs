@@ -38,10 +38,6 @@ impl Cache for DummyCache {
         let entry = read
             .get(&path)
             .expect("BUG: Metadata exists, but entry does not!");
-        eprintln!(
-            "Cache read for {:?}\n-> Returning: {:#?}",
-            meta.integrity, entry.text
-        );
         Ok(entry.text.clone())
     }
 
@@ -56,10 +52,6 @@ impl Cache for DummyCache {
                 text: text.to_owned(),
             },
         );
-        eprintln!(
-            "Cache write to {:?}\n-> Headers: {:#?}\n-> Content: {:#?}",
-            url, headers, text
-        );
         Ok(())
     }
 
@@ -67,7 +59,6 @@ impl Cache for DummyCache {
         let hash = path_from_key(url);
         let read = self.content.read().expect("Reading cache failed");
         let entry = read.get(&hash);
-        eprintln!("Cache Metadata for {:?}: {:?}", url, entry);
         match entry {
             Some(entry) => Ok(Some(clone_metadata(&entry.meta))),
             None => Ok(None),
@@ -76,7 +67,6 @@ impl Cache for DummyCache {
 
     fn clear(&self) -> Result<()> {
         self.content.write().expect("Writing cache failed").clear();
-        eprintln!("Cache cleared");
         Ok(())
     }
 
@@ -92,9 +82,7 @@ impl Cache for DummyCache {
 
 fn path_from_key(key: &str) -> String {
     let integrity = Integrity::from(key);
-    let path = path_from_integrity(&integrity);
-    eprintln!("Hashing key {:?} -> {:#?}", key, path);
-    path
+    path_from_integrity(&integrity)
 }
 
 fn path_from_integrity(integrity: &Integrity) -> String {
@@ -102,7 +90,6 @@ fn path_from_integrity(integrity: &Integrity) -> String {
     let (algorithm, digest) = integrity.to_hex();
     path += &algorithm.to_string();
     path += &digest;
-    eprintln!("Hashing integrity {:?} -> {:#?}", integrity, path);
     path
 }
 

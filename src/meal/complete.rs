@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use serde::Serialize;
 use unicode_width::UnicodeWidthStr;
 
-use crate::get_sane_terminal_dimensions;
+use crate::{error::Result, get_sane_terminal_dimensions};
 
 use super::{MealId, Meta, PRE};
 
@@ -27,39 +27,40 @@ pub struct MealComplete<'c> {
 
 impl<'c> MealComplete<'c> {
     /// Print this [`MealComplete`] to the terminal.
-    pub fn print(&self, highlight: bool) {
+    pub fn print(&self, highlight: bool) -> Result<()> {
         let (width, _height) = get_sane_terminal_dimensions();
         // Print meal name
-        self.print_name_to_terminal(width, highlight);
+        self.print_name_to_terminal(width, highlight)?;
         // Get notes, i.e. allergenes, descriptions, tags
-        self.print_category_and_primary_tags(highlight);
-        self.print_descriptions(width, highlight);
-        self.print_price_and_secondary_tags(highlight);
+        self.print_category_and_primary_tags(highlight)?;
+        self.print_descriptions(width, highlight)?;
+        self.print_price_and_secondary_tags(highlight)
     }
 
-    fn print_name_to_terminal(&self, width: usize, highlight: bool) {
+    fn print_name_to_terminal(&self, width: usize, highlight: bool) -> Result<()> {
         let max_name_width = width - NAME_PRE.width() - PRE.width();
         let mut name_parts = textwrap::wrap(&self.meta.name, max_name_width).into_iter();
         // There will always be a first part of the splitted string
         let first_name_part = name_parts.next().unwrap();
-        println!(
+        try_println!(
             "{}{}{}",
             *PRE,
             hl_if(highlight, *NAME_PRE),
             color!(hl_if(highlight, first_name_part); bold),
-        );
+        )?;
         for name_part in name_parts {
             let name_part = hl_if(highlight, name_part);
-            println!(
+            try_println!(
                 "{}{}{}",
                 *PRE,
                 hl_if(highlight, *NAME_CONTINUE_PRE),
                 color!(name_part; bold),
-            );
+            )?;
         }
+        Ok(())
     }
 
-    fn print_category_and_primary_tags(&self, highlight: bool) {
+    fn print_category_and_primary_tags(&self, highlight: bool) -> Result<()> {
         let mut tag_str = self
             .meta
             .tags
@@ -69,39 +70,40 @@ impl<'c> MealComplete<'c> {
         let tag_str_colored =
             if_plain!(color!(tag_str.join(" "); bright_black), tag_str.join(", "));
         let comma_if_plain = if_plain!("", ",");
-        println!(
+        try_println!(
             "{}{}{}{} {}",
             *PRE,
             hl_if(highlight, *CATEGORY_PRE),
             color!(self.meta.category; bright_blue),
             color!(comma_if_plain; bright_black),
             tag_str_colored
-        );
+        )
     }
 
-    fn print_descriptions(&self, width: usize, highlight: bool) {
+    fn print_descriptions(&self, width: usize, highlight: bool) -> Result<()> {
         let max_note_width = width - OTHER_NOTE_PRE.width() - PRE.width();
         for note in &self.meta.descs {
             let mut note_parts = textwrap::wrap(note, max_note_width).into_iter();
             // There will always be a first part in the splitted string
-            println!(
+            try_println!(
                 "{}{}{}",
                 *PRE,
                 hl_if(highlight, *OTHER_NOTE_PRE),
                 note_parts.next().unwrap()
-            );
+            )?;
             for part in note_parts {
-                println!(
+                try_println!(
                     "{}{}{}",
                     *PRE,
                     hl_if(highlight, *OTHER_NOTE_CONTINUE_PRE),
                     part
-                );
+                )?;
             }
         }
+        Ok(())
     }
 
-    fn print_price_and_secondary_tags(&self, highlight: bool) {
+    fn print_price_and_secondary_tags(&self, highlight: bool) -> Result<()> {
         let prices = self.meta.prices.to_terminal_string();
         let mut secondary: Vec<_> = self
             .meta
@@ -111,13 +113,13 @@ impl<'c> MealComplete<'c> {
             .collect();
         secondary.sort_unstable();
         let secondary_str = secondary.iter().map(|tag| tag.as_id()).join(" ");
-        println!(
+        try_println!(
             "{}{}{}  {}",
             *PRE,
             hl_if(highlight, *PRICES_PRE),
             prices,
             color!(secondary_str; bright_black),
-        );
+        )
     }
 }
 

@@ -99,13 +99,12 @@ impl Canteen {
                 .initial_indent(ADRESS_INDENT)
                 .subsequent_indent(ADRESS_INDENT),
         );
-        println!(
+        try_println!(
             "{} {}\n{}",
             color!(format!("{:>4}", self.id); bold, bright_yellow),
             color!(self.meta()?.name; bold),
             color!(address; bright_black),
-        );
-        Ok(())
+        )
     }
 
     pub fn id(&self) -> CanteenId {
@@ -132,7 +131,7 @@ impl Canteen {
             Self::print_all_json(canteens)
         } else {
             for canteen in canteens {
-                println!();
+                try_println!()?;
                 canteen.print()?;
             }
             Ok(())
