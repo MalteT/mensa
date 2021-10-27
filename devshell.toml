@@ -1,0 +1,13 @@
+imports = [ "git.hooks" ]
+
+[devshell]
+name = "mensa"
+
+[[commands]]
+help = "update README.md from src/main.rs"
+name = "update-readme"
+command = "cargo readme --no-indent-headings -o README.md"
+
+[git.hooks]
+enable = true
+pre-commit.text = "nix flake check"
