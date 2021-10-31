@@ -1,11 +1,21 @@
 [package]
 name = "mensa"
-version = "0.4.3"
-authors = ["Malte Tammena <malte.tammena@pm.me>"]
+version = "0.5.0"
+description = "CLI tool to query the menu of canteens contained in the OpenMensa database"
+authors = [ "Malte Tammena <malte.tammena@pm.me>" ]
 edition = "2021"
 resolver = "2"
 license = "MIT"
 repository = "https://github.com/MalteT/mensa"
+rust-version = "1.56"
+keywords = [ "CLI", "uni", "mensa", "openmensa" ]
+categories = [ "command-line-utilities" ]
+exclude = [
+  "static/*",
+  "devshell.toml",
+  "flake.nix",
+  "flake.lock"
+]
 
 [package.metadata.nix]
 build = true
