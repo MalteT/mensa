@@ -1,3 +1,5 @@
+cargo-features = ["edition2021"]
+
 [package]
 name = "mensa"
 version = "0.5.0"

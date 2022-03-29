@@ -1,7 +1,6 @@
 {
   inputs = {
-    nixCargoIntegration.url = "github:yusdacra/nix-cargo-integration";
-    fenix.url = "github:nix-community/fenix";
+    nixCargoIntegration.url = "github:yusdacra/nix-cargo-integration?ref=release-1.0";
   };
 
   outputs = inputs: inputs.nixCargoIntegration.lib.makeOutputs { root = ./.; };
