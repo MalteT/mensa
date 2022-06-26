@@ -53,31 +53,23 @@ impl Api for ReqwestApi {
 impl From<reqwest::header::HeaderMap> for Headers {
     fn from(map: reqwest::header::HeaderMap) -> Self {
         use reqwest::header::*;
-        let etag = map
-            .get(ETAG)
-            .and_then(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                Some(utf8.to_string())
-            });
-        let this_page = map
-            .get("x-current-page")
-            .and_then(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                utf8.parse().ok()
-            });
-        let next_page = map
-            .get(LINK)
-            .and_then(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                let captures = LINK_NEXT_PAGE_RE.captures(utf8)?;
-                Some(captures[1].to_owned())
-            });
-        let last_page = map
-            .get("x-total-pages")
-            .and_then(|raw| {
-                let utf8 = raw.to_str().ok()?;
-                utf8.parse().ok()
-            });
+        let etag = map.get(ETAG).and_then(|raw| {
+            let utf8 = raw.to_str().ok()?;
+            Some(utf8.to_string())
+        });
+        let this_page = map.get("x-current-page").and_then(|raw| {
+            let utf8 = raw.to_str().ok()?;
+            utf8.parse().ok()
+        });
+        let next_page = map.get(LINK).and_then(|raw| {
+            let utf8 = raw.to_str().ok()?;
+            let captures = LINK_NEXT_PAGE_RE.captures(utf8)?;
+            Some(captures[1].to_owned())
+        });
+        let last_page = map.get("x-total-pages").and_then(|raw| {
+            let utf8 = raw.to_str().ok()?;
+            utf8.parse().ok()
+        });
         Self {
             etag,
             this_page,
