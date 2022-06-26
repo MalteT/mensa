@@ -14,7 +14,7 @@ mod dummy;
 pub use self::dummy::DummyApi as DefaultApi;
 
 /// Assortment of headers relevant to the program.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Headers {
     pub etag: Option<String>,

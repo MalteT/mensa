@@ -55,33 +55,29 @@ impl From<reqwest::header::HeaderMap> for Headers {
         use reqwest::header::*;
         let etag = map
             .get(ETAG)
-            .map(|raw| {
+            .and_then(|raw| {
                 let utf8 = raw.to_str().ok()?;
                 Some(utf8.to_string())
-            })
-            .flatten();
+            });
         let this_page = map
             .get("x-current-page")
-            .map(|raw| {
+            .and_then(|raw| {
                 let utf8 = raw.to_str().ok()?;
                 utf8.parse().ok()
-            })
-            .flatten();
+            });
         let next_page = map
             .get(LINK)
-            .map(|raw| {
+            .and_then(|raw| {
                 let utf8 = raw.to_str().ok()?;
                 let captures = LINK_NEXT_PAGE_RE.captures(utf8)?;
                 Some(captures[1].to_owned())
-            })
-            .flatten();
+            });
         let last_page = map
             .get("x-total-pages")
-            .map(|raw| {
+            .and_then(|raw| {
                 let utf8 = raw.to_str().ok()?;
                 utf8.parse().ok()
-            })
-            .flatten();
+            });
         Self {
             etag,
             this_page,

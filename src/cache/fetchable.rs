@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(from = "T", untagged)]
 pub enum Fetchable<T> {
     /// The value does not exist, but can be fetched.
