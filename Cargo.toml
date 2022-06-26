@@ -1,6 +1,6 @@
 [package]
 name = "mensa"
-version = "0.5.0"
+version = "0.5.1"
 description = "CLI tool to query the menu of canteens contained in the OpenMensa database"
 authors = [ "Malte Tammena <malte.tammena@pm.me>" ]
 edition = "2021"
