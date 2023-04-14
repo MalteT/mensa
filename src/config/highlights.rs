@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Highlight {
     #[serde(default)]
